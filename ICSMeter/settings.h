@@ -1,6 +1,7 @@
 // Copyright (c) F4HWN Armel. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+
 // IC Transceiver Model
 #define IC_MODEL 705                            // 705, 7300 (and may be 9700)
 
@@ -26,3 +27,5 @@
 #define TRANSVERTER_LO_3    404000000           // LO Frequency if you're using a Transverter
 #define TRANSVERTER_LO_4    406000000           // LO Frequency if you're using a Transverter
 #define TRANSVERTER_LO_5   9968000000           // LO Frequency if you're using a Transverter
+
+
