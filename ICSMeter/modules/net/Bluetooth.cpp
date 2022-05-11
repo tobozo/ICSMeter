@@ -61,14 +61,14 @@ namespace ICSMeter
       {
         if (event == ESP_SPP_SRV_OPEN_EVT)
         {
-          btConnected = true;
+          connected = true;
           Serial.println("BT Client Connected");
         }
         if (event == ESP_SPP_CLOSE_EVT)
         {
-          M5.Lcd.sleep();
+          tft.sleep();
           wakeup = false;
-          btConnected = false;
+          connected = false;
           Serial.println("BT Client disconnected");
         }
       }

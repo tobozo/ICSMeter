@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../main/core.h"
+#include "../../main/core.h"
 
 namespace ICSMeter
 {
@@ -9,10 +9,11 @@ namespace ICSMeter
 
     WiFiServer httpServer(80);
     WiFiClient httpClient, civClient;
-    boolean wifiConnected = false;
+
 
     namespace wifi
     {
+      bool connected = false;
       // Send CI-V Command by Wifi
       void sendCommandWifi(char *request, size_t n, char *buffer, uint8_t limit);
       // Wifi callback On

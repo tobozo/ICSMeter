@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../main/core.h"
+#include "../../main/core.h"
 
 namespace ICSMeter
 {
@@ -10,10 +10,11 @@ namespace ICSMeter
 
     // Bluetooth connector
     BluetoothSerial CAT;
-    boolean btConnected = false;
+
 
     namespace bluetooth
     {
+      bool connected = false;
       // Send CI-V Command by Bluetooth
       void sendCommandBt(char *request, size_t n, char *buffer, uint8_t limit);
       // Bluetooth callback

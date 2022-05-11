@@ -92,14 +92,14 @@ namespace ICSMeter
       // Wifi callback On
       void callbackWifiOn(WiFiEvent_t event, WiFiEventInfo_t info)
       {
-        wifiConnected = true;
+        connected = true;
         Serial.println("Wifi Client Connected");
       }
 
       // Wifi callback Off
       void callbackWifiOff(WiFiEvent_t event, WiFiEventInfo_t info)
       {
-        wifiConnected = false;
+        connected = false;
         Serial.println("Wifi Client disconnected");
 
         WiFi.begin(WIFI_SSID, WIFI_PASSWORD);

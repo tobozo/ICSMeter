@@ -1,11 +1,9 @@
 #pragma once
 
-#include "../main/core.h"
+#include "../core/ICSMeter.hpp"
 
 namespace ICSMeter
 {
-  // Get button
-  void getButton();
 
   namespace fs
   {
