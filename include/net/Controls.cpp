@@ -34,10 +34,12 @@ namespace ICSMeter
     void setupNetwork()
     {
       if( strcmp( WIFI_SSID, "YOUR WIFI SSID" )==0 || strcmp( WIFI_SSID, "YOUR WIFI PASSWORD" )==0 ) {
-        WiFi.begin(); // no login/password defined, maybe the ESP32 has saved credentials from a previous connection?
+        WiFi.begin();
+        log_d("No credentials provided in settings.h, using previously saved tokens, if any...");
       } else {
         WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
       }
+
       uint8_t attempts = 0;
       while (WiFi.status() != WL_CONNECTED && attempts <= 10) {
         vTaskDelay(250);

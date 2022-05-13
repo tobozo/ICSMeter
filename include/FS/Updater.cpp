@@ -142,6 +142,7 @@ namespace ICSMeter
           }
 
           if (btnA || btnC) {
+            if( SDUCfg.onAfter ) SDUCfg.onAfter(); // restore text styles
             SD.end(); // If not Bluetooth doesn't work !!!
             return;
           } else if (btnB) {
@@ -180,7 +181,7 @@ namespace ICSMeter
               GZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );      // prevent the partition from exploding, recommended
               GZUnpacker->setGzProgressCallback( updateProgressCallback );              // attach SDUpdater progress bar to ESP32-targz unpacker
               GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  ); // gz log verbosity for serial console
-              GZUnpacker->setPsram( true );                                             // may speed up decompression if psram is available
+              GZUnpacker->setPsram( false );                                            // psram may slow down decompression
               if( ! GZUnpacker->gzUpdater( *binFileNames[cursor].fs, binFileNames[cursor].path.c_str(), U_FLASH, /*restart on update*/true ) ) {
                 log_e("gzUpdater failed with return code #%d\n", GZUnpacker->tarGzGetError() );
                 SDUCfg.onMessage( "Update Failed" );
@@ -206,7 +207,6 @@ namespace ICSMeter
 
         start = cursor / limit;
         stop  = (start * limit) + limit;
-        stop  = stop%binFileNames.size();
 
         if (change != cursor) {
           change = cursor;
@@ -214,6 +214,7 @@ namespace ICSMeter
 
           uint8_t i = 0;
           for (uint8_t j = (start * limit); j < stop; j++) {
+            if( j>= binFileNames.size() ) continue; // when speculated pagination exceeds catalog size :-)
             tmpName = binFileNames[j].path.substring(1);
 
             if (cursor == j) {
