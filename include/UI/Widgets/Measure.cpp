@@ -47,6 +47,7 @@ namespace ICSMeter
         {
           valStringOld = valString;
 
+          tft.setTextSize(1);
           tft.setTextDatum(CC_DATUM);
           tft.setFont(&stencilie16pt7b);
           valString.replace(".", ",");
@@ -64,6 +65,7 @@ namespace ICSMeter
         {
           subValStringOld = valString;
 
+          tft.setTextSize(1);
           tft.setTextDatum(CC_DATUM);
           tft.setFont(&YELLOWCRE8pt7b);
           tft.setTextPadding(160);

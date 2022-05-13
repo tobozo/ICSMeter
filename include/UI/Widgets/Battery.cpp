@@ -43,6 +43,7 @@ namespace ICSMeter
 
         // Settings
         tft.setFont(0);
+        tft.setTextSize(1);
         tft.setTextDatum(CC_DATUM);
 
         tft.fillRoundRect(4, 4, 56, 13, 2, TFT_MODE_BACK);

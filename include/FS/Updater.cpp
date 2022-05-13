@@ -97,6 +97,9 @@ namespace ICSMeter
       int8_t change = 255;
       String tmpName;
 
+      tft.setTextFont(0);
+      tft.setTextSize(1);
+
       //SDUCfg.setProgressCb( SDMenuProgressUI ); // use SDUpdater built-in progress bar
       SetupSDMenuConfig(); // load SDUpdater UI defaults
       SDUCfg.setMessageCb( onMessage ); // use custom message
@@ -203,6 +206,7 @@ namespace ICSMeter
 
         start = cursor / limit;
         stop  = (start * limit) + limit;
+        stop  = stop%binFileNames.size();
 
         if (change != cursor) {
           change = cursor;

@@ -495,6 +495,7 @@ namespace ICSMeter
           Settings::lock = true;
 
           if (ScreenSaver::mode == false && Settings::mode == false) {
+            tft.setTextSize(1);
             tft.setTextDatum(CC_DATUM);
             tft.setFont(&stencilie16pt7b);
             tft.setTextPadding(194);
