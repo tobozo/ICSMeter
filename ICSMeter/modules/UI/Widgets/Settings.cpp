@@ -339,6 +339,20 @@ namespace ICSMeter
       }
 
 
+      void onMacAddress()
+      {
+        tft.drawString( WiFi.macAddress().c_str(), 160, h - 6);
+
+        if(btnB == 1) {
+          clearData();
+          UI::draw();
+          select = false;
+          mode = false;
+          vTaskDelay(pdMS_TO_TICKS(150));
+        }
+        vTaskDelay(pdMS_TO_TICKS(150));
+      }
+
       void drawOption(int8_t settingsChoice, bool settingsSelect, uint8_t x, uint8_t y, uint16_t w)
       {
         uint8_t start = 0;

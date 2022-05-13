@@ -86,6 +86,7 @@ namespace ICSMeter
       void onBeep();
       void onScreensaver();
       void onIPAddress();
+      void onMacAddress();
       void onExit();
 
       typedef void (*settings_callback_t)();
@@ -97,15 +98,16 @@ namespace ICSMeter
 
       const settings_handler_t menuchoices[] =
       {
-        { "Measured Values",  onMeasured    },
-        { "Transverter Mode", onTransverter },
-        { "Themes",           onTheme       },
-        { "Brightness",       onBrightness  },
-        { "Beep",             onBeep        },
-        { "Screensaver",      onScreensaver },
-        { "IP Address",       onIPAddress   },
+        { "Measured Values",  onMeasured            },
+        { "Transverter Mode", onTransverter         },
+        { "Themes",           onTheme               },
+        { "Brightness",       onBrightness          },
+        { "Beep",             onBeep                },
+        { "Screensaver",      onScreensaver         },
+        { "IP Address",       onIPAddress           },
+        { "Mac Address",      onMacAddress          },
         { "Shutdown",         ScreenSaver::shutdown },
-        { "Exit",             onExit        },
+        { "Exit",             onExit                },
       };
 
       constexpr const char *choiceBrightness  = "BRIGHTNESS";

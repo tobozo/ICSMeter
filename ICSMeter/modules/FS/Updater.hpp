@@ -5,7 +5,7 @@
 namespace ICSMeter
 {
 
-  namespace fs
+  namespace updater
   {
    // List files on SPIFFS or SD
     void getBinaryList(File dir, String type);

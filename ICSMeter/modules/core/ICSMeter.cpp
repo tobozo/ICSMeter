@@ -4,7 +4,6 @@
 #include "../FS/Updater.cpp"
 #include "../net/Controls.cpp"
 #if IC_CONNECT==BT && IC_MODEL==705
-  // same as "#if IC_CONNECT==BT && IC_MODEL==705" but neutral
   #include "../net/Bluetooth.cpp"
 #endif
 #include "../net/WiFi.cpp"
@@ -23,7 +22,7 @@ namespace ICSMeter
 {
 
   using namespace modules;
-  using namespace fs;
+  using namespace updater;
   using namespace net;
   using namespace UI;
   using namespace UI::Measure;
@@ -43,7 +42,7 @@ namespace ICSMeter
     // TODO: if prefs::use_fastled
     modules::setupFastLed();
 
-    binLoader();
+    updater::binLoader();
 
     UI::setup();
     UI::draw();
