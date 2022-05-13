@@ -1,11 +1,18 @@
 #pragma once
 
 // #define SDU_HEADLESS // saves a few bytes but disables the progress bar when a binary is loading
-
 #define GZIP_BINLOADER // enables updates from gzipped binaries
+
+#define BT  1
+#define USB 2
 
 #include "../settings.h"
 
+#if !defined FASTLED_INTERNAL
+  #define FASTLED_INTERNAL // To disable pragma messages on compile
+#endif
+
+#include <FastLED.h>
 #include <Preferences.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -14,19 +21,7 @@
 #include <SPIFFS.h>
 #include <M5Unified.h>
 
-
-#define DEBUG 0
-#define BT    1
-#define USB   2
-
 #if IC_CONNECT==BT && IC_MODEL==705
-
-  #if defined ARDUINO_PARTITION_default
-
-  #endif
-
-
-
   #include <BluetoothSerial.h>
 #endif
 
@@ -38,12 +33,13 @@
 
 #include <M5StackUpdater.h>
 
+#define DEBUG              0
+#define VERSION            "0.1.5"
+#define AUTHOR             "F4HWN"
+#define NAME               "ICSMeter"
+#define REPO_URL           "https://github.com/armel/ICSMeter"
+#define TIMEOUT_BIN_LOADER 3 // duration (seconds) of binloader screen on boot
 
-
-#define VERSION  "0.1.5"
-#define AUTHOR   "F4HWN"
-#define NAME     "ICSMeter"
-#define REPO_URL "https://github.com/armel/ICSMeter"
-
-
-
+#define NUM_LEDS           10
+#define Neopixel_PIN       32 // 21
+#define NUM_LEDS_STRIP     30

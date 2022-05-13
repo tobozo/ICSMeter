@@ -20,5 +20,11 @@ namespace ICSMeter
 
   void loadPrefs();
 
+  namespace updater
+  {
+    // Bin Loader
+    void binLoader();
+  };
+
 
 };

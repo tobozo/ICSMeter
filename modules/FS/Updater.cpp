@@ -1,7 +1,4 @@
-#include "Updater.hpp"
-
-#define TIMEOUT_BIN_LOADER 3 // 3 sec
-
+#include "../core/ICSMeter.hpp"
 
 #include <vector>
 

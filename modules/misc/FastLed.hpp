@@ -1,16 +1,6 @@
 #pragma once
 
-#if !defined FASTLED_INTERNAL
-  #define FASTLED_INTERNAL // To disable pragma messages on compile
-#endif
-#define NUM_LEDS 10
-#define Neopixel_PIN 32 // 21
-#define NUM_LEDS_STRIP 30
-
-// dafuq is wrong with that library emitting pragma warnings for a full year now
-// and claiming Arduino IDE is faulty as a lame excuse to not fix it :-(
-#include <FastLED.h>
-
+#include "../core/ICSMeter.hpp"
 
 namespace ICSMeter
 {
