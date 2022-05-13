@@ -1,5 +1,7 @@
 #pragma once
 
+#define SDU_HEADLESS // saves a few bytes
+
 #include <Preferences.h>
 #include <WiFi.h>
 #include <HTTPClient.h>

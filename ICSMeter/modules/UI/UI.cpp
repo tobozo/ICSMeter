@@ -10,7 +10,6 @@ namespace ICSMeter
   namespace UI
   {
 
-
     using namespace Theme;
     using namespace net;
     using namespace Utils;
@@ -30,11 +29,11 @@ namespace ICSMeter
       float scale_y = 0.0f;
 
       switch( img->type ) {
-        case IMAGE_PNG: dst->drawPng( img->data, img->len, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y ); break;
-        case IMAGE_JPG: dst->drawJpg( img->data, img->len, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y ); break;
-        case IMAGE_BMP: dst->drawBmp( img->data, img->len, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y ); break;
-        case IMAGE_QOI: dst->drawQoi( img->data, img->len, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y ); break;
-        case IMAGE_RAW: dst->pushImage( -offX, -offY, maxWidth, maxHeight, img->data, img->len );   break;
+         case IMAGE_JPG: dst->drawJpg( img->data, img->len, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y ); break;
+//         case IMAGE_PNG: dst->drawPng( img->data, img->len, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y ); break;
+//         case IMAGE_BMP: dst->drawBmp( img->data, img->len, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y ); break;
+//         case IMAGE_QOI: dst->drawQoi( img->data, img->len, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y ); break;
+//         case IMAGE_RAW: dst->pushImage( -offX, -offY, maxWidth, maxHeight, img->data, img->len );   break;
       }
     }
 
@@ -59,7 +58,7 @@ namespace ICSMeter
     void draw()
     {
       Theme::resetColor();
-      tft.fillScreen(TFT_BACK);
+      tft.fillScreen( Theme::bgcolor );
       drawTop();
       drawMiddle();
       drawBottom();

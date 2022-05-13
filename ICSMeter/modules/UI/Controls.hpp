@@ -1,16 +1,11 @@
 #pragma once
 
-// Copyright (c) F4HWN Armel. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-//#include "../../main/core.h"
 
 namespace ICSMeter
 {
 
   namespace UI
   {
-
 
     uint8_t brightness = 64;
 
@@ -36,7 +31,6 @@ namespace ICSMeter
     void shutdown(); // Shutdown
 
     void buttonTask(void *pvParameters); // Get Button task
-
 
   };
 };

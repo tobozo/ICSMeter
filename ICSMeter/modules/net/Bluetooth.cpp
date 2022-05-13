@@ -1,4 +1,3 @@
-#include "Bluetooth.hpp"
 #include "Controls.hpp"
 
 namespace ICSMeter
@@ -41,10 +40,9 @@ namespace ICSMeter
                 counter++;
                 if (counter > limit)
                 {
-                  if (DEBUG)
-                  {
+                  #if DEBUG==1
                     Serial.print(" Overflow");
-                  }
+                  #endif
                   break;
                 }
               }
@@ -56,20 +54,24 @@ namespace ICSMeter
       }
 
 
+      constexpr const char* MSG_BT_CONNECTED    = "BT Client Connected";
+      constexpr const char* MSG_BT_DISCONNECTED = "BT Client disconnected";
+
+
       // Bluetooth callback
       void callbackBT(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
       {
         if (event == ESP_SPP_SRV_OPEN_EVT)
         {
           connected = true;
-          Serial.println("BT Client Connected");
+          Serial.println( MSG_BT_CONNECTED );
         }
         if (event == ESP_SPP_CLOSE_EVT)
         {
           tft.sleep();
           wakeup = false;
           connected = false;
-          Serial.println("BT Client disconnected");
+          Serial.println( MSG_BT_DISCONNECTED );
         }
       }
 

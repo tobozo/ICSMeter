@@ -1,11 +1,8 @@
 // Copyright (c) F4HWN Armel. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 #include "Controls.hpp"
 
 #include "../core/ICSMeter.hpp"
-
 #include "../FS/Updater.hpp"
-// ICS controls
 #include "../net/Controls.hpp"
 #include "UI.hpp"
 

@@ -8,8 +8,13 @@
 #include "../UI/Themes/Themes.cpp"
 #include "../UI/UI.cpp"
 #include "../UI/Controls.cpp"
-#include "../UI/Widgets.cpp"
-
+#include "../UI/Widgets.hpp"
+#include "../UI/Widgets/Battery.cpp"
+#include "../UI/Widgets/Measure.cpp"
+#include "../UI/Widgets/Needle.cpp"
+#include "../UI/Widgets/ScreenSaver.cpp"
+#include "../UI/Widgets/Transverter.cpp"
+#include "../UI/Widgets/Settings.cpp"
 
 namespace ICSMeter
 {
@@ -99,16 +104,14 @@ namespace ICSMeter
     // check if Screen Saver needs enabling
     ScreenSaver::handle();
 
-    if(DEBUG) {
+    #if DEBUG==1
       Serial.print(ScreenSaver::mode);
       Serial.print(" ");
       Serial.print(millis() - ScreenSaver::timer);
       Serial.print(" ");
       Serial.println(ScreenSaver::countdown * 60 * 1000);
-    }
+    #endif
   }
-
-
 
   const uint32_t buttons_poll_delay = 30; // min delay (milliseconds) between each button poll
   uint32_t last_button_poll = millis();

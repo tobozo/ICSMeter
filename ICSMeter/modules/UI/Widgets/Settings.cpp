@@ -1,9 +1,4 @@
-#include "ScreenSaver.hpp"
 
-#include "../../Utils/Maths.hpp"
-#include "../../net/Controls.hpp"
-#include "../Controls.hpp"
-#include "../UI.hpp"
 
 
 namespace ICSMeter
@@ -15,7 +10,6 @@ namespace ICSMeter
     namespace Settings
     {
 
-
       void drawMenu(uint8_t x, uint8_t y, uint16_t w, uint8_t h)
       {
         tft.fillRoundRect(x, y, w, h, 8, TFT_MENU_BACK);
@@ -25,15 +19,19 @@ namespace ICSMeter
         tft.setFont(&YELLOWCRE8pt7b);
         tft.setTextPadding(w - 2);
         tft.setTextColor(TFT_MENU_SELECT);
-        tft.drawString("SETTINGS", 160, 14 + y);
+        tft.drawString( "SETTINGS", 160, 14 + y);
 
         tft.setTextDatum(CC_DATUM);
         tft.setFont(0);
         tft.setTextPadding(w - 2);
         tft.setTextColor(TFT_MENU_SELECT);
-        tft.drawString(String(NAME) + " V" + String(VERSION) + " by " + String(AUTHOR), 160, 28 + y);
 
-        tft.drawFastHLine(120, 3, 80, TFT_BACK);
+        #define VERSION_PREFIX " V"
+        #define AUTHOR_PREFIX " by "
+        tft.drawString( NAME VERSION_PREFIX VERSION  AUTHOR_PREFIX AUTHOR, 160, 28 + y);
+        //tft.drawString(String(NAME) + " V" + String(VERSION) + " by " + String(AUTHOR), 160, 28 + y);
+
+        tft.drawFastHLine(120, 3, 80, Theme::bgcolor);
         tft.drawFastHLine(x + 1, 36 + y, w - 2, TFT_MENU_SELECT);
         tft.drawFastHLine(x + 1, (y + h) - 24, w - 2, TFT_MENU_SELECT);
       }
@@ -109,10 +107,10 @@ namespace ICSMeter
           select = true;
           drawOption(choice, select, x, y, w);
 
-          String settingsString = String(menuchoices[choice].label);
-          if(settingsString == "Shutdown") {
+          //String settingsString = String(menuchoices[choice].label);
+          if( strcmp( menuchoices[choice].label, "Shutdown" ) == 0 ) { // if(settingsString == "Shutdown")
             ScreenSaver::shutdown();
-          } else if(settingsString == "Exit") {
+          } else if( strcmp( menuchoices[choice].label, "Exit" ) == 0 ) { //if(settingsString == "Exit")
             onExit();
           }
         }
@@ -122,7 +120,7 @@ namespace ICSMeter
 
       void onMeasured()
       {
-        tft.drawString(String(Measure::choices[Measure::value]), 160, h - 6);
+        tft.drawString( Measure::choices[Measure::value], 160, h - 6 );
 
         if(btnA || btnC) {
           if(btnA == 1) {
@@ -137,8 +135,10 @@ namespace ICSMeter
             }
           }
         } else if(btnB == 1) {
-          if(Measure::valueOld != Measure::value)
+          if(Measure::valueOld != Measure::value) {
             preferences.putUInt("measure", Measure::value);
+            Measure::valueOld = Measure::value;
+          }
           clearData();
           UI::draw();
           select = false;
@@ -151,30 +151,19 @@ namespace ICSMeter
 
       void onTheme()
       {
-        tft.drawString(String(Theme::choices[Theme::theme]), 160, h - 6);
+        tft.drawString( Theme::choices[Theme::theme], 160, h - 6);
 
         if(btnA || btnC) {
 
           if(btnA == 1) {
             if( Theme::theme > 0 ) Theme::theme--;
-            else Theme::theme = THEMES_COUNT-1;
-            //Theme::theme -= 1;
-            //if(Theme::theme < 0) {
-            //  Theme::theme = 1;
-            //}
+            else Theme::theme = Theme::THEMES_COUNT-1;
           } else if(btnC == 1) {
-
-            if( Theme::theme+2 <= THEMES_COUNT ) Theme::theme++;
+            if( Theme::theme+2 <= Theme::THEMES_COUNT ) Theme::theme++;
             else Theme::theme = 0;
-
-            //Theme::theme += 1;
-            //if(Theme::theme > 1) {
-            //  Theme::theme = 0;
-            //}
           }
 
           Theme::set();
-
 
         } else if(btnB == 1) {
           if(Theme::themeOld != Theme::theme) {
@@ -193,7 +182,9 @@ namespace ICSMeter
 
       void onBrightness()
       {
-        tft.drawString(String(choiceBrightness) + " " + String(brightness) + "%", 160, h - 6);
+        char textbox[20];
+        snprintf( textbox, 19, "%s %d%s", choiceBrightness, brightness, "%" );
+        tft.drawString( textbox /*String(choiceBrightness) + " " + String(brightness) + "%"*/, 160, h - 6);
 
         if(btnA || btnC) {
           if(btnA == 1) {
@@ -208,15 +199,17 @@ namespace ICSMeter
             }
           }
         } else if(btnB == 1) {
-          if(brightnessOld != brightness)
+          if(brightnessOld != brightness) {
             preferences.putUInt("brightness", brightness);
+            brightnessOld = brightness;
+          }
           clearData();
           UI::draw();
           select = false;
           mode = false;
           vTaskDelay(pdMS_TO_TICKS(150));
         }
-        setBrightness(map(brightness, 1, 100, 1, 254));
+        setBrightness( map(brightness, 1, 100, 1, 254) );
         vTaskDelay(pdMS_TO_TICKS(25));
       }
 
@@ -224,24 +217,15 @@ namespace ICSMeter
       void onTransverter()
       {
          if(Transverter::value == 0) {
+
           tft.drawString("OFF", 160, h - 6);
+
         } else {
-          String transverterStringOld = String(Transverter::choices[Transverter::value]);
-          String transverterStringNew = "";
-          uint8_t lenght = transverterStringOld.length();
-          int8_t i;
 
-          for(i = lenght - 6; i >= 0; i -= 3) {
-            transverterStringNew = "." + transverterStringOld.substring(i, i + 3) + transverterStringNew;
-          }
+          char transverter_value_str[17];
+          format_number( Transverter::choices[Transverter::value], 16, transverter_value_str, '.' );
+          tft.drawString( transverter_value_str, 160, h - 6 );
 
-          if(i == -3) {
-            transverterStringNew = transverterStringNew.substring(1, transverterStringNew.length());
-          } else {
-            transverterStringNew = transverterStringOld.substring(0, i + 3) + transverterStringNew;
-          }
-
-          tft.drawString(transverterStringNew, 160, h - 6);
         }
 
         size_t stop = sizeof(Transverter::choices) / sizeof(Transverter::choices[0]);
@@ -260,8 +244,10 @@ namespace ICSMeter
             }
           }
         } else if(btnB == 1) {
-          if(Transverter::valueOld != Transverter::value)
+          if(Transverter::valueOld != Transverter::value) {
             preferences.putUInt("transverter", Transverter::value);
+            Transverter::valueOld = Transverter::value;
+          }
           clearData();
           UI::draw();
           select = false;
@@ -274,7 +260,9 @@ namespace ICSMeter
 
       void onBeep()
       {
-        tft.drawString(String(choiceBeep) + " " + String(beep) + "%", 160, h - 6);
+        char textbox[20];
+        snprintf( textbox, 19, "%s %d%s", choiceBeep, beep, "%" );
+        tft.drawString( textbox /*String(choiceBeep) + " " + String(beep) + "%"*/, 160, h - 6);
 
         if(btnA || btnC) {
           if(btnA == 1) {
@@ -289,8 +277,10 @@ namespace ICSMeter
             }
           }
         } else if(btnB == 1) {
-          if(beepOld != beep)
+          if(beepOld != beep) {
             preferences.putUInt("beep", beep);
+            beepOld = beep;
+          }
           clearData();
           UI::draw();
           select = false;
@@ -303,7 +293,9 @@ namespace ICSMeter
 
       void onScreensaver()
       {
-        tft.drawString(String(choiceScreensaver) + " " + String(ScreenSaver::countdown) + " MIN", 160, h - 6);
+        char textbox[20];
+        snprintf( textbox, 19, "%s %d%s", ScreenSaver::settingsLabel, ScreenSaver::countdown, " MIN" );
+        tft.drawString( textbox, 160, h - 6);
 
         if(btnA || btnC) {
           if(btnA == 1) {
@@ -334,7 +326,7 @@ namespace ICSMeter
 
       void onIPAddress()
       {
-        tft.drawString(String(WiFi.localIP().toString().c_str()), 160, h - 6);
+        tft.drawString( WiFi.localIP().toString().c_str(), 160, h - 6);
 
         if(btnB == 1) {
           clearData();

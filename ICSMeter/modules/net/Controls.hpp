@@ -2,9 +2,6 @@
 
 #include "../../main/core.h"
 
-#include "Bluetooth.hpp"
-#include "WiFi.hpp"
-
 
 namespace ICSMeter
 {
@@ -40,6 +37,35 @@ namespace ICSMeter
 
     bool M5Screen24bmp(); // Get screenshot
     void checkScreenshot(); // manage screenshot
+
+
+    WiFiServer httpServer(80);
+    WiFiClient httpClient, civClient;
+
+    namespace wifi
+    {
+      bool connected = false;
+      // Send CI-V Command by Wifi
+      void sendCommandWifi(char *request, size_t n, char *buffer, uint8_t limit);
+      // Wifi callback On
+      void callbackWifiOn(WiFiEvent_t event, WiFiEventInfo_t info);
+      // Wifi callback Off
+      void callbackWifiOff(WiFiEvent_t event, WiFiEventInfo_t info);
+    };
+
+
+    // Bluetooth connector
+    BluetoothSerial CAT;
+
+    namespace bluetooth
+    {
+      bool connected = false;
+      // Send CI-V Command by Bluetooth
+      void sendCommandBt(char *request, size_t n, char *buffer, uint8_t limit);
+      // Bluetooth callback
+      void callbackBT(esp_spp_cb_event_t event, esp_spp_cb_param_t *param);
+    };
+
 
   };
 

@@ -1,9 +1,4 @@
-#include "Measure.hpp"
 
-#include "../../Utils/Maths.hpp"
-#include "../../net/Controls.hpp"
-#include "../Controls.hpp"
-#include "../UI.hpp"
 
 
 namespace ICSMeter
@@ -11,7 +6,6 @@ namespace ICSMeter
 
   namespace UI
   {
-
 
     namespace Measure
     {
@@ -34,7 +28,7 @@ namespace ICSMeter
 
           for (j = 0; j <= 2; j++) {
             if (value == j) {
-              tft.setTextColor(TFT_FRONT);
+              tft.setTextColor(Theme::fgcolor);
               reset = true;
             } else {
               tft.setTextColor(TFT_DARKGREY);
@@ -58,7 +52,7 @@ namespace ICSMeter
           valString.replace(".", ",");
           //tft.setFont(&YELLOWCRE8pt7b);
           tft.setTextPadding(190);
-          tft.setTextColor(TFT_FRONT, TFT_BACK);
+          tft.setTextColor(Theme::fgcolor, Theme::bgcolor);
           tft.drawString(valString, x, y);
         }
       }
@@ -74,7 +68,7 @@ namespace ICSMeter
           tft.setFont(&YELLOWCRE8pt7b);
           tft.setTextPadding(160);
           //tft.setTextColor(TFT_BLACK, TFT_RED);
-          tft.setTextColor(TFT_FRONT, TFT_BACK);
+          tft.setTextColor(Theme::fgcolor, Theme::bgcolor);
           // valString.replace(".", ",");
           tft.drawString(valString, x, y);
         }

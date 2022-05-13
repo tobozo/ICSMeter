@@ -27,6 +27,9 @@ namespace ICSMeter
     bool buttonRightPressed  = false;
 
 
+    constexpr const char * ERR_BT_INIT = "An error occurred initializing Bluetooth";
+    constexpr const char * MSG_BT_INIT = "Bluetooth initialized";
+
     void setupNetwork()
     {
       if( strcmp( WIFI_SSID, "YOUR WIFI SSID" )==0 || strcmp( WIFI_SSID, "YOUR WIFI PASSWORD" )==0 ) {
@@ -47,9 +50,9 @@ namespace ICSMeter
         CAT.register_callback(bluetooth::callbackBT);
 
         if (!CAT.begin(NAME)) {
-          Serial.println("An error occurred initializing Bluetooth");
+          Serial.println( ERR_BT_INIT );
         } else {
-          Serial.println("Bluetooth initialized");
+          Serial.println( MSG_BT_INIT );
         }
       } else {
         if (WiFi.status() == WL_CONNECTED) wifi::connected = true;
@@ -113,14 +116,14 @@ namespace ICSMeter
         }
 
         // Debug trace
-        if (DEBUG) {
+        #if DEBUG==1
           Serial.print("Get S");
           Serial.print(val0);
           Serial.print(" ");
           Serial.print(val1);
           Serial.print(" ");
           Serial.println(angle);
-        }
+        #endif
 
         // Draw line
         Needle::draw(angle);
@@ -205,14 +208,14 @@ namespace ICSMeter
         valString = "SWR " + String(val1);
 
         // Debug trace
-        if (DEBUG) {
+        #if DEBUG==1
           Serial.print("Get SWR");
           Serial.print(val0);
           Serial.print(" ");
           Serial.print(val1);
           Serial.print(" ");
           Serial.println(angle);
-        }
+        #endif
 
         // Draw line
         Needle::draw(angle);
@@ -279,14 +282,14 @@ namespace ICSMeter
           valString = "PWR " + String(val2) + " W";
 
         // Debug trace
-        if (DEBUG) {
+        #if DEBUG==1
           Serial.print("Get PWR");
           Serial.print(val0);
           Serial.print(" ");
           Serial.print(val1);
           Serial.print(" ");
           Serial.println(angle);
-        }
+        #endif
 
         // Draw line
         Needle::draw(angle);
@@ -312,11 +315,11 @@ namespace ICSMeter
 
     void getFrequency()
     {
-      String frequency;
-      String frequencyNew;
+      //String frequency;
+      //String frequencyNew;
 
-      static char buffer[8];
-      char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x03, 0xFD};
+      char buffer[8];
+      const char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x03, 0xFD};
 
       double freq; // Current frequency in Hz
       const uint32_t decMulti[] = {1000000000, 100000000, 10000000, 1000000, 100000, 10000, 1000, 100, 10, 1};
@@ -325,7 +328,7 @@ namespace ICSMeter
 
       size_t n = sizeof(request) / sizeof(request[0]);
 
-      sendCommand(request, n, buffer, 8);
+      sendCommand((char*)request, n, buffer, 8);
 
       freq = 0;
       for (uint8_t i = 2; i < 7; i++) {
@@ -333,28 +336,18 @@ namespace ICSMeter
         freq += (buffer[9 - i] & 0x0F) * decMulti[(i - 2) * 2 + 1];
       }
 
-      if (Transverter::value > 0)
+      if (Transverter::value > 0) {
         freq += double(Transverter::choices[Transverter::value]);
+      }
 
-      frequency = String(freq);
-      lenght = frequency.length();
-
-      if (frequency != "0") {
-        int8_t i;
-
-        for (i = lenght - 6; i >= 0; i -= 3) {
-          frequencyNew = "." + frequency.substring(i, i + 3) + frequencyNew;
-        }
-
-        if (i == -3) {
-          frequencyNew = frequencyNew.substring(1, frequencyNew.length());
-        } else {
-          frequencyNew = frequency.substring(0, i + 3) + frequencyNew;
-        }
-        Measure::subValue(frequencyNew);
+      if( freq != 0 ) {
+        char measure_value_str[17];
+        format_number( freq, 16, measure_value_str, '.' );
+        Measure::subValue( measure_value_str );
       } else {
         Measure::subValue("-");
       }
+
     }
 
 
@@ -363,13 +356,13 @@ namespace ICSMeter
       String valString;
 
       static char buffer[5];
-      char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x04, 0xFD};
+      const char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x04, 0xFD};
 
       const char *mode[] = {"LSB", "USB", "AM", "CW", "RTTY", "FM", "WFM", "CW-R", "RTTY-R", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "DV"};
 
       size_t n = sizeof(request) / sizeof(request[0]);
 
-      sendCommand(request, n, buffer, 5);
+      sendCommand((char*)request, n, buffer, 5);
 
       tft.setFont(0);
       tft.setTextPadding(24);
@@ -406,11 +399,11 @@ namespace ICSMeter
       uint8_t value;
 
       static char buffer[5];
-      char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x1C, 0x00, 0xFD};
+      const char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x1C, 0x00, 0xFD};
 
       size_t n = sizeof(request) / sizeof(request[0]);
 
-      sendCommand(request, n, buffer, 5);
+      sendCommand((char*)request, n, buffer, 5);
 
       if (buffer[4] <= 1) {
         value = buffer[4];
@@ -422,6 +415,13 @@ namespace ICSMeter
     }
 
 
+    constexpr const char* MSG_NEEDPAIRING = "Need Pairing";
+    constexpr const char* MSG_CHECKWIFI   = "Check Wifi";
+    constexpr const char* MSG_CHECKTX     = "Check TX";
+    constexpr const char* MSG_CHECKPROXY  = "Check Proxy";
+    constexpr const char* MSG_TX_UP       = "TX connected";
+    constexpr const char* MSG_TX_DOWN     = "TX disconnected";
+
     // Manage connexion error
     bool checkConnection()
     {
@@ -429,11 +429,11 @@ namespace ICSMeter
 
       uint16_t httpCode;
 
-      String message = "";
+      const char *message = nullptr;
       String command = "";
       String response = "";
 
-      char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x03, 0xFD};
+      const char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x03, 0xFD};
       char s[4];
 
       Settings::lock = false;
@@ -446,12 +446,11 @@ namespace ICSMeter
       command += BAUDE_RATE + String(",") + SERIAL_DEVICE;
 
       if (screenshot == false) {
-        if (IC_MODEL == 705 && IC_CONNECT == BT && bluetooth::connected == false)
-          message = "Need Pairing";
-        else if (IC_CONNECT == USB && wifi::connected == false)
-          message = "Check Wifi";
-        else if (IC_CONNECT == USB && (proxyConnected == false || txConnected == false))
-        {
+        if (IC_MODEL == 705 && IC_CONNECT == BT && bluetooth::connected == false) {
+          message = MSG_NEEDPAIRING;
+        } else if (IC_CONNECT == USB && wifi::connected == false) {
+          message = MSG_CHECKWIFI;
+        } else if (IC_CONNECT == USB && (proxyConnected == false || txConnected == false)) {
           http.begin(civClient, PROXY_URL + String(":") + PROXY_PORT + String("/") + String("?civ=") + command); // Specify the URL
           http.addHeader("User-Agent", "M5Stack");                                                               // Specify header
           http.addHeader("Connection", "keep-alive");                                                            // Specify header
@@ -464,16 +463,16 @@ namespace ICSMeter
             response.trim();
 
             if (response != "") {
-              Serial.println("TX connected");
+              Serial.println( MSG_TX_UP );
               txConnected = true;
-              message = "";
+              //message = nullptr;
             } else {
-              Serial.println("TX disconnected");
+              Serial.println( MSG_TX_DOWN );
               txConnected = false;
-              message = "Check TX";
+              message = MSG_CHECKTX;
             }
           } else {
-            message = "Check Proxy";
+            message = MSG_CHECKPROXY;
           }
           http.end();
         }
@@ -495,17 +494,17 @@ namespace ICSMeter
         }
 
         // View message
-        if (message != "") {
+        if ( message ) {
           Settings::lock = true;
 
           if (ScreenSaver::mode == false && Settings::mode == false) {
             tft.setTextDatum(CC_DATUM);
             tft.setFont(&stencilie16pt7b);
             tft.setTextPadding(194);
-            tft.setTextColor(Theme::TFT_FRONT, Theme::TFT_BACK);
-            tft.drawString(message, 160, 180);
+            tft.setTextColor( Theme::fgcolor, Theme::bgcolor );
+            tft.drawString( message, 160, 180 );
             vTaskDelay(750);
-            tft.drawString("", 160, 180);
+            tft.drawString( "", 160, 180 ); // ??
             frequencyOld = "";
             Settings::lock = false;
             vTaskDelay(250);
@@ -591,10 +590,8 @@ namespace ICSMeter
         if (httpClient) {
           // Force a disconnect after 3 seconds
           // Serial.println("New Client.");
-          // Loop while the client's connected
-          while (httpClient.connected()) {
-            // If the client is still connected after 3 seconds, something is wrong. So kill the connection
-            if (millis() > timeout_millis) {
+          while (httpClient.connected()) { // Loop while the client's connected
+            if (millis() > timeout_millis) { // If the client is still connected after 3 seconds, something is wrong. So kill the connection
               // Serial.println("Force Client stop!");
               httpClient.stop();
             }

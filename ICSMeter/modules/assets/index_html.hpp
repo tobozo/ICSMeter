@@ -87,7 +87,11 @@ namespace ICSMeter
 
 )HTML";
 
-const char index_core2_html[]  = R"HTML(
+
+
+
+
+  const char index_core2_html[]  = R"HTML(
 
 <!doctype html>
 <html>

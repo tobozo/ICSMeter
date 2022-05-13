@@ -1,9 +1,4 @@
-#include "ScreenSaver.hpp"
 
-#include "../../Utils/Maths.hpp"
-#include "../../net/Controls.hpp"
-#include "../Controls.hpp"
-#include "../UI.hpp"
 
 
 namespace ICSMeter
@@ -14,7 +9,6 @@ namespace ICSMeter
 
     namespace ScreenSaver
     {
-
 
       void shutdown()
       {
@@ -87,11 +81,11 @@ namespace ICSMeter
         }
 
         // Debug trace
-        if (DEBUG) {
+        #if DEBUG==1
           Serial.print(mode);
           Serial.print(" ");
           Serial.println(millis() - timer);
-        }
+        #endif
       }
 
 

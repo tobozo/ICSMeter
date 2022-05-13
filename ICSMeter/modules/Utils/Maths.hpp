@@ -32,6 +32,25 @@ namespace ICSMeter
     }
 
 
+    // format number with thousands separator
+    void format_number( int64_t n, int maxlen, char *out, char thousand_separator = ',' )
+    {
+      int c;
+      char buf[maxlen+1];
+      char *p;
+
+      snprintf(buf, maxlen, "%lld", n);
+      c = 2 - strlen(buf) % 3;
+      for (p = buf; *p != 0; p++) {
+        *out++ = *p;
+        if (c == 1) {
+            *out++ = thousand_separator;
+        }
+        c = (c + 1) % 3;
+      }
+      *--out = 0;
+    }
+
   };
 
 };
