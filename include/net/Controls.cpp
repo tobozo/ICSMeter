@@ -362,6 +362,7 @@ namespace ICSMeter
       sendCommand((char*)request, n, buffer, 5);
 
       tft.setFont(0);
+      tft.setTextSize(1);
       tft.setTextPadding(24);
       tft.setTextColor(TFT_WHITE);
       tft.setTextDatum(CC_DATUM);

@@ -15,6 +15,7 @@ namespace ICSMeter
         tft.fillRoundRect(x, y, w, h, 8, TFT_MENU_BACK);
         tft.drawRoundRect(x, y, w, h, 8, TFT_MENU_BORDER);
 
+        tft.setTextSize(1);
         tft.setTextDatum(CC_DATUM);
         tft.setFont(&YELLOWCRE8pt7b);
         tft.setTextPadding(w - 2);
@@ -358,6 +359,7 @@ namespace ICSMeter
         uint8_t start = 0;
         uint8_t i, j;
 
+        tft.setTextSize(1);
         tft.setTextDatum(CC_DATUM);
         tft.setFont(&tahoma8pt7b);
         tft.setTextPadding(w - 2);
