@@ -39,9 +39,6 @@ namespace ICSMeter
     void checkScreenshot(); // manage screenshot
 
 
-    WiFiServer httpServer(80);
-    WiFiClient httpClient, civClient;
-
     namespace wifi
     {
       bool connected = false;
@@ -54,16 +51,13 @@ namespace ICSMeter
     };
 
 
-    // Bluetooth connector
-    BluetoothSerial CAT;
-
     namespace bluetooth
     {
       bool connected = false;
       // Send CI-V Command by Bluetooth
       void sendCommandBt(char *request, size_t n, char *buffer, uint8_t limit);
       // Bluetooth callback
-      void callbackBT(esp_spp_cb_event_t event, esp_spp_cb_param_t *param);
+      void begin();
     };
 
 

@@ -20,6 +20,8 @@ namespace ICSMeter
     using namespace Utils;
     using namespace UI;
 
+    WiFiServer httpServer(80);
+    WiFiClient httpClient, civClient;
 
     // Flags for button presses via Web site Screen Capture
     bool buttonLeftPressed   = false;
@@ -27,8 +29,7 @@ namespace ICSMeter
     bool buttonRightPressed  = false;
 
 
-    constexpr const char * ERR_BT_INIT = "An error occurred initializing Bluetooth";
-    constexpr const char * MSG_BT_INIT = "Bluetooth initialized";
+
 
     void setupNetwork()
     {
@@ -47,13 +48,9 @@ namespace ICSMeter
 
       // now start BT if needed
       if(IC_MODEL == 705 && IC_CONNECT == BT) {
-        CAT.register_callback(bluetooth::callbackBT);
 
-        if (!CAT.begin(NAME)) {
-          Serial.println( ERR_BT_INIT );
-        } else {
-          Serial.println( MSG_BT_INIT );
-        }
+        bluetooth::begin();
+
       } else {
         if (WiFi.status() == WL_CONNECTED) wifi::connected = true;
       }

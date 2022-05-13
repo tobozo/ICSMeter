@@ -3,7 +3,10 @@
 #include "../misc/FastLed.hpp"
 #include "../FS/Updater.cpp"
 #include "../net/Controls.cpp"
-#include "../net/Bluetooth.cpp"
+#if IC_CONNECT==BT && IC_MODEL==705
+  // same as "#if IC_CONNECT==BT && IC_MODEL==705" but neutral
+  #include "../net/Bluetooth.cpp"
+#endif
 #include "../net/WiFi.cpp"
 #include "../UI/Themes/Themes.cpp"
 #include "../UI/UI.cpp"
