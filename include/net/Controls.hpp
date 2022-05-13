@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../main/core.h"
+#include "../core/ICSMeter.hpp"
 
 
 namespace ICSMeter
