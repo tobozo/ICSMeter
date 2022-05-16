@@ -9,22 +9,16 @@ namespace ICSMeter
 
   M5GFX &tft(M5.Lcd); // provide a shorthand to "M5.Lcd"
 
-  // Setup
-  void setup();
+  void setup(); // Main Setup
 
-  // Main loop
-  void loop();
+  void loop(); // Main loop
 
   void checkButtons();
   int btnA, btnB, btnC, btnL, btnM, btnR;
 
   void loadPrefs();
-
-  namespace updater
-  {
-    // Bin Loader
-    void binLoader();
-  };
+  unsigned int getPref( const char* name, unsigned int default_value );
+  void setPref( const char* name, unsigned int value );
 
 
 };

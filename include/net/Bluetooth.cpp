@@ -18,6 +18,10 @@ namespace ICSMeter
       constexpr const char * ERR_BT_INIT = "An error occurred initializing Bluetooth";
       constexpr const char * MSG_BT_INIT = "Bluetooth initialized";
 
+      constexpr const char* MSG_BT_CONNECTED    = "BT Client Connected";
+      constexpr const char* MSG_BT_DISCONNECTED = "BT Client disconnected";
+
+
       void callbackBT(esp_spp_cb_event_t event, esp_spp_cb_param_t *param);
 
       void begin()
@@ -69,11 +73,6 @@ namespace ICSMeter
         }
         // Serial.println(" Ok");
       }
-
-
-      constexpr const char* MSG_BT_CONNECTED    = "BT Client Connected";
-      constexpr const char* MSG_BT_DISCONNECTED = "BT Client disconnected";
-
 
       // Bluetooth callback
       void callbackBT(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)

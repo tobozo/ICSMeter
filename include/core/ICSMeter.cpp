@@ -1,5 +1,6 @@
 #include "ICSMeter.hpp"
 
+#include "../UI/Helpers/CSS.cpp"
 #include "../misc/FastLed.hpp"
 #include "../FS/Updater.cpp"
 #include "../net/Controls.cpp"
@@ -12,99 +13,58 @@
 #include "../UI/Controls.cpp"
 #include "../UI/Widgets.hpp"
 #include "../UI/Widgets/Battery.cpp"
+#include "../UI/Widgets/DataMode.cpp"
 #include "../UI/Widgets/Measure.cpp"
 #include "../UI/Widgets/Needle.cpp"
 #include "../UI/Widgets/ScreenSaver.cpp"
-#include "../UI/Widgets/Transverter.cpp"
 #include "../UI/Widgets/Settings.cpp"
+#include "../UI/Widgets/Transverter.cpp"
+
 
 namespace ICSMeter
 {
 
   using namespace modules;
-  using namespace updater;
-  using namespace net;
   using namespace UI;
-  using namespace UI::Measure;
-  using namespace UI::Battery;
-  using namespace UI::ScreenSaver;
 
-  // Main Setup
-  void setup()
+
+  void setup() // Main Setup
   {
-
-    // Init M5
     auto cfg = M5.config();
-    M5.begin(cfg);
+    M5.begin(cfg); // Init M5
 
     loadPrefs();
 
-    // TODO: if prefs::use_fastled
-    modules::setupFastLed();
-
-    updater::binLoader();
+    FSUpdater::binLoader();
 
     UI::setup();
     UI::draw();
+    UI::drawWidgets( true );
 
-    setupNetwork();
+    net::setup();
 
-    xTaskCreatePinnedToCore( buttonTask, "buttonTask", 8192, NULL, 4, NULL, 1);
+    xTaskCreatePinnedToCore( UI::buttonTask, "buttonTask", 8192, NULL, 4, NULL, 1);
   }
 
 
-  // Main Loop
-  void loop()
+  void loop() // Main Loop
   {
-    static uint8_t alternance = 0;
-    static uint8_t tx = 0;
+    ScreenSaver::handle(); // check if Screen Saver needs enabling
 
-    if(checkConnection()) {
-      tx = getTX();
-      if(tx != 0) ScreenSaver::timer = millis();   // If transmit, refresh tempo
+    if(net::connected()) {
+      uint8_t tx = getTX(); // check connection health
+      if(tx != 0) ScreenSaver::reset(); // If transmit, refresh tempo
 
-      if (ScreenSaver::mode == false && screenshot == false && Settings::mode == false) {
+      if ( UI::canDrawUI() && screenshot::capture == false  ) {
         Settings::lock = true;
 
-        if(tx == 0) {
-          for(uint8_t i = 0; i <= 9; i++){
-            leds[i] = CRGB::Black;
-          }
-          FastLED.setBrightness(16);
-          FastLED.show();
-        } else {
-          for(uint8_t i = 0; i <= 9; i++){
-            leds[i] = CRGB::Red;
-          }
-          FastLED.setBrightness(16);
-          FastLED.show();
-        }
+        ICScan();
+        FastLed::set( tx );
+        UI::drawWidgets();
 
-        Measure::draw();
-        Battery::draw();
-        Transverter::draw();
-
-        getMode();
-        getFrequency();
-
-        switch (Measure::value) {
-        case 0:
-          getPower();
-          break;
-        case 1:
-          getSmeter();
-          break;
-        case 2:
-          getSWR();
-          break;
-        }
         Settings::lock = false;
       }
     }
-    alternance = (alternance++ < 2) ? alternance : 0;
-
-    // check if Screen Saver needs enabling
-    ScreenSaver::handle();
 
     #if DEBUG==1
       Serial.print(ScreenSaver::mode);
@@ -115,13 +75,11 @@ namespace ICSMeter
     #endif
   }
 
-  const uint32_t buttons_poll_delay = 30; // min delay (milliseconds) between each button poll
-  uint32_t last_button_poll = millis();
 
-  // Get button
   void checkButtons()
   {
-
+    const uint32_t buttons_poll_delay = 30; // min delay (milliseconds) between each button poll
+    static uint32_t last_button_poll = millis();
     uint32_t now = millis();
 
     if( last_button_poll + buttons_poll_delay > now ) return;
@@ -132,34 +90,48 @@ namespace ICSMeter
     btnA = M5.BtnA.isPressed();
     btnB = M5.BtnB.isPressed();
     btnC = M5.BtnC.isPressed();
-
-    btnL = M5.BtnA.pressedFor(2000);
-    btnM = M5.BtnB.pressedFor(2000);
-    btnR = M5.BtnC.pressedFor(2000);
-
-    /*
-    Serial.print(btnA);
-    Serial.print(btnB);
-    Serial.print(btnC);
-    Serial.print(btnL);
-    Serial.print(btnM);
-    Serial.println(btnR);
-    */
   }
 
 
   void loadPrefs()
   {
-    // Preferences
     preferences.begin(NAME);
-    Measure::value = preferences.getUInt("measure", 1);
-    brightness = preferences.getUInt("brightness", 64);
-    Transverter::value = preferences.getUInt("transverter", 0);
-    beep = preferences.getUInt("beep", 0);
-    ScreenSaver::countdown = preferences.getUInt("screensaver", 60);
-    Theme::theme = preferences.getUInt("theme", 0);
-    Theme::set();
+
+    BackLight::setup();
+    FastLed::setup();
+    Beeper::setup();
+    ScreenSaver::setup();
+    Theme::setup();
+    Measure::setup();
+    Transverter::setup();
+
+    preferences.end();
   }
+
+
+  unsigned int getPref( const char* name, unsigned int default_value )
+  {
+    preferences.begin(NAME);
+
+    unsigned int ret = preferences.getUInt( name, default_value );
+
+    preferences.end();
+
+    return ret;
+  }
+
+
+  void setPref( const char* name, unsigned int value )
+  {
+    preferences.begin(NAME);
+
+    preferences.putUInt( name, value );
+
+    preferences.end();
+  }
+
+
+
 
 
 };

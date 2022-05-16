@@ -4,6 +4,7 @@
 #include "../../assets/font.hpp"
 #include "../../assets/images.hpp"
 #include "../../assets/index_html.hpp"
+#include "../Helpers/CSS.hpp"
 
 namespace ICSMeter
 {
@@ -11,21 +12,27 @@ namespace ICSMeter
   namespace UI
   {
 
-
     namespace Theme
     {
 
-      int8_t theme = 0;
-      int8_t themeOld = 0;
+      using namespace CSS;
 
-      const RGBColor TFT_MODE_BORDER   = {115, 135, 159};
-      const RGBColor TFT_MODE_BACK     = {24,  57,  92};
+      constexpr const int8_t THEMES_COUNT = 2;
 
-      uint16_t bgcolor   = 0; // bgcolor in use
-      uint16_t fgcolor  = 0; // fgcolor in use
+      const uint32_t TFT_MODE_BORDER   = 0x73879fU;
+      const uint32_t TFT_MODE_BACK     = 0x18395cU;
+
+      const uint32_t TFT_BACK_CLASSIC  = 0xfff8ecU;
+      const uint32_t TFT_FRONT_CLASSIC = 0x000000U;
+
+      const uint32_t TFT_BACK_DARK     = 0x000000U;
+      const uint32_t TFT_FRONT_DARK    = 0xffffffU;
+
+      const uint32_t TFT_MENU_BORDER   = 0x73879fU;
+      const uint32_t TFT_MENU_BACK     = 0x18395cU;
+      const uint32_t TFT_MENU_SELECT   = 0xffffffU;
 
       void set();
-      void resetColor();
 
       // imported from LGFXMeter, remove that later
       enum image_type_t
@@ -50,12 +57,19 @@ namespace ICSMeter
 
       struct layout_t
       {
-        const image_t *top;
-        const image_t *middle;
-        const image_t *bottom;
-        const RGBColor bgcolor;
-        const RGBColor fgcolor;
+        const image_t *topImage;
+        const image_t *middleImage;
+        const image_t *bottomImage;
+        const uint32_t fgcolor;
+        const uint32_t bgcolor;
       };
+
+      const layout_t    *layout;      // themed layout in use
+      const FontStyle_t *H3FontStyle; // themed shared font style for H3
+      extern const TextBoxStyle_t BadgeBoxStyle; // unthemed shared box style
+
+      extern const FontStyle_t *H3FontStyleTheme[THEMES_COUNT];
+      extern const layout_t    *layouts[THEMES_COUNT];
 
     };
 

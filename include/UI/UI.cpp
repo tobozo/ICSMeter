@@ -1,8 +1,5 @@
 #include "UI.hpp"
 
-#include "Controls.hpp"
-#include "Widgets.hpp"
-
 
 namespace ICSMeter
 {
@@ -13,11 +10,11 @@ namespace ICSMeter
     using namespace Theme;
     using namespace net;
     using namespace Utils;
+    using namespace modules;
 
 
     void setup()
     {
-      setBrightness(map(brightness, 1, 100, 1, 254));
       tft.setRotation(1);
     }
 
@@ -38,30 +35,59 @@ namespace ICSMeter
     }
 
 
+
+    void drawWidgets( bool force_redraw )
+    {
+
+      if( force_redraw ) drawTop();
+      Battery::draw( force_redraw );
+      Transverter::draw( force_redraw );
+      if( DataMode::needs_redraw() ) {
+        DataMode::draw( force_redraw );
+      }
+
+      if( force_redraw ) drawMiddle();
+      if( Needle::needs_redraw() ) {
+        Needle::draw();
+      }
+
+      if( force_redraw )  drawBottom();
+      Measure::drawLabels( force_redraw );
+      if( Measure::needs_redraw() ) {
+        Measure::drawValues( force_redraw );
+      }
+
+    }
+
+
     void drawTop()
     {
-      drawImage( &tft, layout->top, 0, 0, 320, 20);
+      drawImage( &tft, layout->topImage, 0, 0, layout->topImage->width, layout->topImage->height);
     }
+
 
     void drawMiddle()
     {
-      drawImage( &tft, layout->middle, 0, 20, 320, 140);
+      drawImage( &tft, layout->middleImage, 0, 20, 320, 140);
     }
+
 
     void drawBottom()
     {
-      drawImage( &tft, layout->bottom, 0, 160, 320, 80);
+      drawImage( &tft, layout->bottomImage, 0, 160, 320, 80);
     }
-
 
 
     void draw()
     {
-      Theme::resetColor();
-      tft.fillScreen( Theme::bgcolor );
       drawTop();
       drawMiddle();
       drawBottom();
+    }
+
+    bool canDrawUI()
+    {
+       return (ScreenSaver::mode == false && Settings::mode == false);
     }
 
 

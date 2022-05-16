@@ -10,6 +10,35 @@ namespace ICSMeter
     namespace Theme
     {
 
+      using namespace CSS;
+
+      int8_t theme = 0;
+      int8_t themeOld = 0;
+
+
+      void setup()
+      {
+        theme = getPref("theme", 0 );
+        set();
+      }
+
+
+      void save()
+      {
+        if( theme != themeOld ) {
+          setPref("theme", theme);
+          themeOld = theme;
+        }
+      }
+
+
+      void set()
+      {
+        layout = layouts[theme];
+        H3FontStyle = H3FontStyleTheme[theme];
+      }
+
+
       const image_t middle10Classic   = { 16, smeterMiddleClassic10 , sizeof(smeterMiddleClassic10  ), IMAGE_JPG, 320, 140 };
       const image_t middle100Classic  = { 16, smeterMiddleClassic100, sizeof(smeterMiddleClassic100 ), IMAGE_JPG, 320, 140 };
       const image_t topClassic        = { 16, smeterTopClassic      , sizeof(smeterTopClassic       ), IMAGE_JPG, 320, 20  };
@@ -22,38 +51,59 @@ namespace ICSMeter
       const image_t bottomDark        = { 16, smeterBottomDark      , sizeof(smeterBottomDark       ), IMAGE_JPG, 320, 80  };
       const image_t *middleDarkPtr    = (IC_MODEL == 705) ? &middle10Dark : &middle100Dark;
 
-      const RGBColor TFT_BACK_CLASSIC  = {255, 248, 236};
-      const RGBColor TFT_FRONT_CLASSIC = {0,   0,   0};
+      const layout_t classic = { &topClassic, middleClassicPtr, &bottomClassic, TFT_FRONT_CLASSIC, TFT_BACK_CLASSIC };
+      const layout_t dark    = { &topDark,    middleDarkPtr,    &bottomDark,    TFT_FRONT_DARK,    TFT_BACK_DARK    };
 
-      const RGBColor TFT_BACK_DARK     = {0,   0,   0};
-      const RGBColor TFT_FRONT_DARK    = {255, 255, 255};
+      // CSS declarations
 
-      const layout_t classic = { &topClassic, middleClassicPtr, &bottomClassic, TFT_BACK_CLASSIC, TFT_FRONT_CLASSIC };
-      const layout_t dark    = { &topDark,    middleDarkPtr,    &bottomDark,    TFT_BACK_DARK,    TFT_FRONT_DARK    };
-
-      const int8_t THEMES_COUNT = 2;
-      const char     *choices[THEMES_COUNT] = {"CLASSIC", "DARK"}; // labels for settings menu
-      const layout_t *layouts[THEMES_COUNT] = { &classic, &dark }; // pointers to layouts
-      const layout_t *layout = layouts[theme]; // current layout in use
-
-      const uint16_t TFT_MENU_BORDER   = tft.color565(115, 135, 159);
-      const uint16_t TFT_MENU_BACK     = tft.color565(24,  57,  92);
-      const uint16_t TFT_MENU_SELECT   = tft.color565(255, 255, 255);
-
-      // Needle
-      const RGBColor TFT_NEDDLE_1      = {241, 120, 100};
-      const RGBColor TFT_NEDDLE_2      = {241, 140, 120};
-
-      void set()
+      const TextStyle_t BadgeTextStyle =
       {
-        layout = layouts[theme];
-      }
+        .fgColor   = TFT_MENU_SELECT,
+        .bgColor   = TFT_MENU_BACK,
+        .size      = 1,
+        .datum     = MC_DATUM,
+        .paddingX  = 24
+      };
+      const FontStyle_t BadgeFontStyle = { &Font0, &BadgeTextStyle, OPAQUE };
 
-      void resetColor()
+      const TextBoxStyle_t BadgeBoxStyle =
       {
-        bgcolor  = tft.color565(layout->bgcolor.r, layout->bgcolor.g,  layout->bgcolor.b);
-        fgcolor = tft.color565(layout->fgcolor.r, layout->fgcolor.g, layout->fgcolor.b);
-      }
+        .fontStyle    = &BadgeFontStyle,
+        .fillColor    = TFT_MENU_BACK,
+        .borderColor  = TFT_MENU_BORDER,
+        .borderWidth  = 1,  // set to 0 to disable border
+        .borderRadius = 2,
+        .paddingX     = 0,
+        .paddingY     = 0
+      };
+
+      // dark/classic text styles
+      const TextStyle_t ConnectH3Classic =
+      {
+        .fgColor   = 0x000000U,
+        .bgColor   = 0xfff8ecU,
+        .size      = 1,
+        .datum     = MC_DATUM,
+        .paddingX  = 194
+      };
+      const TextStyle_t ConnectH3Dark =
+      {
+        .fgColor   = 0xfff8ecU,
+        .bgColor   = 0x000000U,
+        .size      = 1,
+        .datum     = MC_DATUM,
+        .paddingX  = 194
+      };
+
+      // dark/classic font styles
+      const FontStyle_t H3FontStyleDark    = { &stencilie16pt7b, &ConnectH3Dark   , OPAQUE  };
+      const FontStyle_t H3FontStyleClassic = { &stencilie16pt7b, &ConnectH3Classic, OPAQUE  };
+
+      // Actual themed values
+      const char        *choices[THEMES_COUNT]          = {"CLASSIC",            "DARK"}; // labels for settings menu
+      const layout_t    *layouts[THEMES_COUNT]          = { &classic,            &dark }; // pointers to layouts
+      const FontStyle_t *H3FontStyleTheme[THEMES_COUNT] = { &H3FontStyleClassic, &H3FontStyleDark }; // pointers to font styles
+
 
     };
 

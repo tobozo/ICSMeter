@@ -33,11 +33,14 @@
 
 #include <M5StackUpdater.h>
 
-#define DEBUG              0
+#define DEBUG              1
 #define VERSION            "0.1.5"
 #define AUTHOR             "F4HWN"
 #define NAME               "ICSMeter"
 #define REPO_URL           "https://github.com/armel/ICSMeter"
+
+#define APP_TITLE          NAME " V" VERSION  " by " AUTHOR
+
 #define TIMEOUT_BIN_LOADER 3 // duration (seconds) of binloader screen on boot
 
 #define NUM_LEDS           10

@@ -1,5 +1,10 @@
 #pragma once
 
+#include "Controls.hpp"
+#include "Widgets.hpp"
+#include "Themes/Themes.hpp"
+
+
 namespace ICSMeter
 {
 
@@ -11,6 +16,8 @@ namespace ICSMeter
     void drawTop();
     void drawMiddle();
     void drawBottom();
+    void drawWidgets( bool force_redraw = false );
+    bool canDrawUI();
 
   };
 

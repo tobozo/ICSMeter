@@ -18,25 +18,32 @@ namespace ICSMeter
 
     bool reset          = true;
 
-    bool screenshot     = false;
-
-    char dataMode       = 0;
-
-    void setupNetwork();
-    bool checkConnection(); // Manage connexion error
+    void setup();
+    void ICScan();
+    bool connected(); // Manage connexion error
 
     void sendCommand(char *request, size_t n, char *buffer, uint8_t limit); // Send CI-V Command dispatcher
 
-    uint8_t getTX(); // Get TX
-    void getSmeter(); // Get Smeter
-    void getSWR(); // Get SWR
-    void getPower(); // Get Power
-    void getDataMode(); // Get Data Mode
-    void getFrequency(); // Get Frequency
-    void getMode(); // Get Mode
+    // verbs from getters and setters are UI relative (not IC relative unless specified)
 
-    bool M5Screen24bmp(); // Get screenshot
-    void checkScreenshot(); // manage screenshot
+    uint8_t getTX();     // get last response from IC
+    void setDataMode();  // counter/label values
+    void setFrequency(); // counter/label values
+
+    // needle values
+    void setSmeter();
+    void setSWR();
+    void setPower();
+
+    // filter and mode
+    void setMode();
+
+    namespace screenshot
+    {
+      bool capture = false;
+      bool M5Screen24bmp(); // Get screenshot
+      void check(); // manage screenshot
+    };
 
 
     namespace wifi

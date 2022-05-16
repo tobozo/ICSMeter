@@ -1,12 +1,29 @@
 #include "../core/ICSMeter.hpp"
+#include "../UI/UI.hpp"
 
 #include <vector>
 
 namespace ICSMeter
 {
 
-  namespace updater
+  namespace FSUpdater
   {
+
+    using namespace UI;
+    using namespace CSS;
+
+    constexpr const char* SPIFFS_MSG1           = "Flash File System";
+    constexpr const char* SPIFFS_MSG2           = "needs to be formatted.";
+    constexpr const char* SPIFFS_MSG3           = "It takes up to 4 minutes.";
+    constexpr const char* SPIFFS_MSG4           = "Please, wait until ";
+    constexpr const char* SPIFFS_MSG5           = "the application starts !";
+    constexpr const char* SD_MSG_MOUNTFAIL      = "SD Mount Failed";
+    constexpr const char* SPIFFS_MSG_MOUNTFAIL  = "SPIFFS Mount Failed";
+    constexpr const char* SPIFFS_MSG_FORMATTING = "SPIFFS Formating...";
+    constexpr const char* BIN_LOADER_VERSION    = "Bin Loader V0.2";
+    constexpr const char* BIN_LOADER_SPI        = "SPI Flash File Storage";
+    constexpr const char* BIN_LOADER_SD         = "SD Card Storage";
+
 
     struct loadable_bin_t
     {
@@ -16,6 +33,32 @@ namespace ICSMeter
 
     constexpr const uint16_t MAX_ITEMS_IN_MENU = 128;
     std::vector<loadable_bin_t> binFileNames; // not optimal but better than wasting 128*sizeof(loadable_bin_t)
+
+
+    // CSS declarations
+
+    const TextStyle_t BWCenteredFullPaddingH1 =
+    {
+      .fgColor   = 0xffffffU,
+      .bgColor   = 0x000000U,
+      .size      = 2,
+      .datum     = MC_DATUM,
+      .paddingX  = 320
+    };
+    const FontStyle_t StyleH1 = { &Font0, &BWCenteredFullPaddingH1, OPAQUE };
+
+
+    const TextStyle_t BWCenteredFullPaddingH2 =
+    {
+      .fgColor   = 0xffffffU,
+      .bgColor   = 0x000000U,
+      .size      = 1,
+      .datum     = MC_DATUM,
+      .paddingX  = 320
+    };
+    const FontStyle_t StyleH2 = { &Font0, &BWCenteredFullPaddingH2, OPAQUE };
+
+
 
     void getBinaryList( fs::FS *sourceFS )
     {
@@ -52,19 +95,6 @@ namespace ICSMeter
     }
 
 
-    constexpr const char* SPIFFS_MSG1           = "Flash File System";
-    constexpr const char* SPIFFS_MSG2           = "needs to be formatted.";
-    constexpr const char* SPIFFS_MSG3           = "It takes up to 4 minutes.";
-    constexpr const char* SPIFFS_MSG4           = "Please, wait until ";
-    constexpr const char* SPIFFS_MSG5           = "the application starts !";
-    constexpr const char* SD_MSG_MOUNTFAIL      = "SD Mount Failed";
-    constexpr const char* SPIFFS_MSG_MOUNTFAIL  = "SPIFFS Mount Failed";
-    constexpr const char* SPIFFS_MSG_FORMATTING = "SPIFFS Formating...";
-    constexpr const char* BIN_LOADER_VERSION    = "Bin Loader V0.2";
-    constexpr const char* BIN_LOADER_SPI        = "SPI Flash File Storage";
-    constexpr const char* BIN_LOADER_SD         = "SD Card Storage";
-
-
     #if defined GZIP_BINLOADER
     void updateProgressCallback( uint8_t progress )
     {
@@ -76,17 +106,10 @@ namespace ICSMeter
 
     void onMessage( const String& message )
     {
-      tft.clear();
-      tft.setTextFont(1);
-      tft.setTextSize(2);
-      tft.setTextColor(TFT_WHITE, TFT_BLACK);
-      tft.setTextDatum(CC_DATUM);
-      tft.drawString( message, 160, 20);
+      CSS::drawStyledString( &tft, message.c_str(), 160, 20, &StyleH1 );
     }
 
 
-
-    // Bin Loader
     void binLoader()
     {
       bool click = 0;
@@ -97,26 +120,19 @@ namespace ICSMeter
       int8_t change = 255;
       String tmpName;
 
-      tft.setTextFont(0);
-      tft.setTextSize(1);
+      SetupSDMenuConfig(); // load SDUpdater UI defaults (e.g. progressbar)
 
-      //SDUCfg.setProgressCb( SDMenuProgressUI ); // use SDUpdater built-in progress bar
-      SetupSDMenuConfig(); // load SDUpdater UI defaults
-      SDUCfg.setMessageCb( onMessage ); // use custom message
-      if( SDUCfg.onBefore ) SDUCfg.onBefore(); // capture text styles
-
-      SDUCfg.onMessage( "Scanning Filesystem" );
+      CSS::drawStyledString( &tft, "Scanning Filesystem", 160, 20, &StyleH1 );
 
       if (SPIFFS.begin()) {
         getBinaryList( &SPIFFS );
       } else {
         Serial.println( SPIFFS_MSG_MOUNTFAIL );
-        SDUCfg.onMessage( SPIFFS_MSG1 );
-        //tft.drawString( SPIFFS_MSG1, 160, 20  );
-        tft.drawString( SPIFFS_MSG2, 160, 50  );
-        tft.drawString( SPIFFS_MSG3, 160, 100 );
-        tft.drawString( SPIFFS_MSG4, 160, 150 );
-        tft.drawString( SPIFFS_MSG5, 160, 180 );
+        CSS::drawStyledString( &tft, SPIFFS_MSG1, 160, 20,  &StyleH1 );
+        CSS::drawStyledString( &tft, SPIFFS_MSG2, 160, 50,  nullptr );
+        CSS::drawStyledString( &tft, SPIFFS_MSG3, 160, 100, nullptr );
+        CSS::drawStyledString( &tft, SPIFFS_MSG4, 160, 150, nullptr );
+        CSS::drawStyledString( &tft, SPIFFS_MSG5, 160, 180, nullptr );
         Serial.println( SPIFFS_MSG_FORMATTING );
         SPIFFS.format(); // Format SPIFFS...
       }
@@ -128,7 +144,7 @@ namespace ICSMeter
       }
 
       if ( binFileNames.size() > 0) {
-        SDUCfg.onMessage( "Press the 'Any' Key" );
+        CSS::drawStyledString( &tft, "", 160, 20, &StyleH1 ); // clear last message
         // QRCode
         tft.qrcode( REPO_URL, 90, 80, 140, 6 );
 
@@ -138,16 +154,15 @@ namespace ICSMeter
 
           if (i % 10 == 0) {
             tmpName += ".";
-            tft.drawString(tmpName, 160, 40);
+            CSS::drawStyledString( &tft, tmpName.c_str(), 160, 40, nullptr );
           }
 
           if (btnA || btnC) {
-            if( SDUCfg.onAfter ) SDUCfg.onAfter(); // restore text styles
             SD.end(); // If not Bluetooth doesn't work !!!
             return;
           } else if (btnB) {
             click = 1;
-            tft.fillRect(0, 0, 320, 240, TFT_BLACK);
+            tft.clear();
             break;
           }
 
@@ -155,7 +170,7 @@ namespace ICSMeter
         }
       }
 
-      SDUCfg.onMessage( BIN_LOADER_VERSION );
+      CSS::drawStyledString( &tft, BIN_LOADER_VERSION, 160, 20, &StyleH1 );
 
       while (click == 1) {
         while (btnB != 0) {
@@ -172,7 +187,7 @@ namespace ICSMeter
           cursor++;
         } else if (btnB) {
 
-          SDUCfg.onMessage( "Loading " + binFileNames[cursor].path );
+          CSS::drawStyledString( &tft, String("Loading " + binFileNames[cursor].path).c_str(), 160, 20, &StyleH1 );
 
           if( binFileNames[cursor].path.endsWith(".gz") ) { // use gzUpdater
             #if defined GZIP_BINLOADER
@@ -184,7 +199,7 @@ namespace ICSMeter
               GZUnpacker->setPsram( false );                                            // psram may slow down decompression
               if( ! GZUnpacker->gzUpdater( *binFileNames[cursor].fs, binFileNames[cursor].path.c_str(), U_FLASH, /*restart on update*/true ) ) {
                 log_e("gzUpdater failed with return code #%d\n", GZUnpacker->tarGzGetError() );
-                SDUCfg.onMessage( "Update Failed" );
+                CSS::drawStyledString( &tft, "Update Failed", 160, 20, &StyleH1 );
               } else {
                 Serial.println("Update success, will restart");
               }
@@ -193,7 +208,7 @@ namespace ICSMeter
             updateFromFS(*binFileNames[cursor].fs, binFileNames[cursor].path );
           }
 
-          SDUCfg.onMessage( "Restarting.." );
+          CSS::drawStyledString( &tft, "Restarting..", 160, 20, &StyleH1 );
           ESP.restart();
           // this code should be unreachable since the ESP has received a restart signal
           // however espressif doesn't feel the urge to halt the core when this happens
@@ -210,27 +225,23 @@ namespace ICSMeter
 
         if (change != cursor) {
           change = cursor;
-          tft.setTextPadding(320);
+          //tft.setTextPadding(320);
 
           uint8_t i = 0;
           for (uint8_t j = (start * limit); j < stop; j++) {
             if( j>= binFileNames.size() ) continue; // when speculated pagination exceeds catalog size :-)
-            tmpName = binFileNames[j].path.substring(1);
+            tmpName = binFileNames[j].path.substring(1); // strip leading slash
 
             if (cursor == j) {
               tmpName = ">> " + tmpName + " <<";
 
               if (binFileNames[cursor].fs == &SPIFFS ) {
-                tft.setTextSize(1);
-                tft.drawString( BIN_LOADER_SPI, 160, 50);
+                CSS::drawStyledString( &tft, BIN_LOADER_SPI, 160, 50, &StyleH2 );
               } else {
-                tft.setTextSize(1);
-                tft.drawString( BIN_LOADER_SD, 160, 50);
+                CSS::drawStyledString( &tft, BIN_LOADER_SD, 160, 50, &StyleH2 );
               }
             }
-
-            tft.setTextSize(2);
-            tft.drawString(tmpName, 160, 80 + i * 20);
+            CSS::drawStyledString( &tft, tmpName.c_str(), 160, 80 + i * 20, &StyleH1 );
             i++;
           }
         }
@@ -238,11 +249,10 @@ namespace ICSMeter
       }
       SD.end(); // If not Bluetooth doesn't work !!!
 
-      if( SDUCfg.onAfter ) SDUCfg.onAfter(); // restore text styles
-
     }
 
   };
+
 };
 
 

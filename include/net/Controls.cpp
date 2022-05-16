@@ -21,17 +21,22 @@ namespace ICSMeter
     using namespace UI;
 
     WiFiServer httpServer(80);
-    WiFiClient httpClient, civClient;
+    WiFiClient webClient, civClient;
 
     // Flags for button presses via Web site Screen Capture
     bool buttonLeftPressed   = false;
     bool buttonCenterPressed = false;
     bool buttonRightPressed  = false;
 
+    constexpr const char* MSG_NEEDPAIRING = "Need Pairing";
+    constexpr const char* MSG_CHECKWIFI   = "Check Wifi";
+    constexpr const char* MSG_CHECKTX     = "Check TX";
+    constexpr const char* MSG_CHECKPROXY  = "Check Proxy";
+    constexpr const char* MSG_TX_UP       = "TX connected";
+    constexpr const char* MSG_TX_DOWN     = "TX disconnected";
 
 
-
-    void setupNetwork()
+    void setup()
     {
       if( strcmp( WIFI_SSID, "YOUR WIFI SSID" )==0 || strcmp( WIFI_SSID, "YOUR WIFI PASSWORD" )==0 ) {
         WiFi.begin();
@@ -59,6 +64,7 @@ namespace ICSMeter
     }
 
 
+
     // Send CI-V Command dispatcher
     void sendCommand(char *request, size_t n, char *buffer, uint8_t limit)
     {
@@ -68,8 +74,142 @@ namespace ICSMeter
         sendCommandWifi(request, n, buffer, limit);
     }
 
+    uint8_t getTX()
+    {
+      uint8_t value;
 
-    void getSmeter()
+      static char buffer[5];
+      const char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x1C, 0x00, 0xFD};
+
+      size_t n = sizeof(request) / sizeof(request[0]);
+
+      sendCommand((char*)request, n, buffer, 5);
+
+      if (buffer[4] <= 1) {
+        value = buffer[4];
+      } else {
+        value = 0;
+      }
+
+      return value;
+    }
+
+
+    void ICScan()
+    {
+      setMode();
+      setFrequency();
+
+      switch (Measure::value) {
+        case 0:
+          setPower();
+        break;
+        case 1:
+          setSmeter();
+        break;
+        case 2:
+          setSWR();
+        break;
+      }
+    }
+
+
+
+    bool connected() // Manage connexion error
+    {
+      HTTPClient http;
+
+
+      const char *message = nullptr;
+      String command = "";
+      String response = "";
+
+      const char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x03, 0xFD};
+      char s[4];
+
+      Settings::lock = false;
+
+      for (uint8_t i = 0; i < 6; i++) {
+        sprintf(s, "%02x,", request[i]);
+        command += String(s);
+      }
+
+      command += BAUDE_RATE + String(",") + SERIAL_DEVICE;
+
+      if (screenshot::capture == false) {
+        if (IC_MODEL == 705 && IC_CONNECT == BT && bluetooth::connected == false) {
+          message = MSG_NEEDPAIRING;
+        } else if (IC_CONNECT == USB && wifi::connected == false) {
+          message = MSG_CHECKWIFI;
+        } else if (IC_CONNECT == USB && (proxyConnected == false || txConnected == false)) {
+          http.begin(civClient, PROXY_URL + String(":") + PROXY_PORT + String("/") + String("?civ=") + command); // Specify the URL
+          http.addHeader("User-Agent", "M5Stack");                                                               // Specify header
+          http.addHeader("Connection", "keep-alive");                                                            // Specify header
+          http.setTimeout(100);                                                                                  // Set Time Out
+          uint16_t httpCode = http.GET();                                                                                 // Make the request
+          if (httpCode == 200) {
+            proxyConnected = true;
+
+            response = http.getString(); // Get data
+            response.trim();
+
+            if (response != "") {
+              Serial.println( MSG_TX_UP );
+              txConnected = true;
+              //message = nullptr;
+            } else {
+              Serial.println( MSG_TX_DOWN );
+              txConnected = false;
+              message = MSG_CHECKTX;
+            }
+          } else {
+            message = MSG_CHECKPROXY;
+          }
+          http.end();
+        }
+
+        // Shutdown screen if no TX connexion
+        if (wakeup == true && startup == false) {
+          if ((IC_CONNECT == BT && bluetooth::connected == false) || (IC_CONNECT == USB && txConnected == false)) {
+            tft.sleep();
+            wakeup = false;
+          }
+        } else if (wakeup == false && startup == false) {
+          if ((IC_CONNECT == BT && bluetooth::connected == true) || (IC_CONNECT == USB && txConnected == true)) {
+            clearData();
+            tft.wakeup();
+            UI::draw();
+            wakeup = true;
+            ScreenSaver::reset();
+          }
+        }
+
+        if ( message ) {
+          Settings::lock = true;
+
+          if ( UI::canDrawUI() ) {
+            CSS::drawStyledString( &tft, message, 160, 180, Theme::H3FontStyle );
+            vTaskDelay(750);
+            CSS::drawStyledString( &tft, "",      160, 180, Theme::H3FontStyle );
+            vTaskDelay(250);
+            Settings::lock = false;
+            return false;
+          } else {
+            Settings::lock = false;
+            vTaskDelay(1000);
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+
+
+
+
+
+
+    void setSmeter()
     {
       String valString;
 
@@ -124,11 +264,8 @@ namespace ICSMeter
           Serial.println(angle);
         #endif
 
-        // Draw line
-        Needle::draw(angle);
-
-        // Write Value
-        Measure::setValue(valString);
+        Needle::set( angle );
+        Measure::setPrimaryValue( valString );
 
         // If led strip...
         /*
@@ -156,7 +293,7 @@ namespace ICSMeter
     }
 
 
-    void getSWR()
+    void setSWR()
     {
       String valString;
 
@@ -216,16 +353,15 @@ namespace ICSMeter
           Serial.println(angle);
         #endif
 
-        // Draw line
-        Needle::draw(angle);
+        Needle::set( angle );
+        Measure::setPrimaryValue( valString );
 
-        // Write Value
-        Measure::setValue(valString);
       }
+
     }
 
 
-    void getPower()
+    void setPower()
     {
       String valString;
 
@@ -290,16 +426,15 @@ namespace ICSMeter
           Serial.println(angle);
         #endif
 
-        // Draw line
-        Needle::draw(angle);
+        Needle::set( angle );
+        Measure::setPrimaryValue( valString );
 
-        // Write Value
-        Measure::setValue(valString);
+
       }
     }
 
 
-    void getDataMode()
+    void setDataMode()
     {
       static char buffer[6];
       char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x1A, 0x06, 0xFD};
@@ -308,15 +443,12 @@ namespace ICSMeter
 
       sendCommand(request, n, buffer, 6);
 
-      dataMode = buffer[4];
+      DataMode::mode = buffer[4];
     }
 
 
-    void getFrequency()
+    void setFrequency()
     {
-      //String frequency;
-      //String frequencyNew;
-
       char buffer[8];
       const char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x03, 0xFD};
 
@@ -335,22 +467,21 @@ namespace ICSMeter
         freq += (buffer[9 - i] & 0x0F) * decMulti[(i - 2) * 2 + 1];
       }
 
-      if (Transverter::value > 0) {
-        freq += double(Transverter::choices[Transverter::value]);
+      if (Transverter::get() > 0) {
+        freq += double(Transverter::choices[Transverter::get()]);
       }
 
       if( freq != 0 ) {
         char measure_value_str[17];
         format_number( freq, 16, measure_value_str, '.' );
-        Measure::subValue( measure_value_str );
+        Measure::setSecondaryValue( measure_value_str );
       } else {
-        Measure::subValue("-");
+        Measure::setSecondaryValue("-");
       }
-
     }
 
 
-    void getMode()
+    void setMode()
     {
       String valString;
 
@@ -363,329 +494,193 @@ namespace ICSMeter
 
       sendCommand((char*)request, n, buffer, 5);
 
-      tft.setFont(0);
-      tft.setTextSize(1);
-      tft.setTextPadding(24);
-      tft.setTextColor(TFT_WHITE);
-      tft.setTextDatum(CC_DATUM);
-
       valString = "FIL" + String(uint8_t(buffer[4]));
-      if (valString != filterOld) {
-        filterOld = valString;
-        tft.fillRoundRect(40, 198, 40, 15, 2, Theme::TFT_MODE_BACK);
-        tft.drawRoundRect(40, 198, 40, 15, 2, Theme::TFT_MODE_BORDER);
-        tft.drawString(valString, 60, 206);
-      }
+      DataMode::setFilter( valString );
 
       valString = String(mode[(uint8_t)buffer[3]]);
 
-      getDataMode(); // Data ON or OFF ?
+      setDataMode(); // query CIV: is data ON or OFF ?
 
-      if (dataMode == 1) {
+      if (DataMode::mode == 1) {
         valString += "-D";
       }
-
-      if (valString != modeOld) {
-        modeOld = valString;
-        tft.fillRoundRect(240, 198, 40, 15, 2, Theme::TFT_MODE_BACK);
-        tft.drawRoundRect(240, 198, 40, 15, 2, Theme::TFT_MODE_BORDER);
-        tft.drawString(valString, 260, 206);
-      }
+      DataMode::setMode( valString );
     }
 
 
-    uint8_t getTX()
+
+
+
+
+    namespace screenshot
     {
-      uint8_t value;
 
-      static char buffer[5];
-      const char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x1C, 0x00, 0xFD};
+      bool M5Screen24bmp()
+      {
+        uint16_t image_height = tft.height();
+        uint16_t image_width = tft.width();
+        const uint16_t pad = (4 - (3 * image_width) % 4) % 4;
+        uint32_t filesize = 54 + (3 * image_width + pad) * image_height;
+        unsigned char swap;
+        unsigned char line_data[image_width * 3 + pad];
+        unsigned char header[54] = {
+            'B', 'M',    // BMP signature (Windows 3.1x, 95, NT, …)
+            0, 0, 0, 0,  // Image file size in bytes
+            0, 0, 0, 0,  // Reserved
+            54, 0, 0, 0, // Start of pixel array
+            40, 0, 0, 0, // Info header size
+            0, 0, 0, 0,  // Image width
+            0, 0, 0, 0,  // Image height
+            1, 0,        // Number of color planes
+            24, 0,       // Bits per pixel
+            0, 0, 0, 0,  // Compression
+            0, 0, 0, 0,  // Image size (can be 0 for uncompressed images)
+            0, 0, 0, 0,  // Horizontal resolution (dpm)
+            0, 0, 0, 0,  // Vertical resolution (dpm)
+            0, 0, 0, 0,  // Colors in color table (0 = none)
+            0, 0, 0, 0}; // Important color count (0 = all colors are important)
 
-      size_t n = sizeof(request) / sizeof(request[0]);
-
-      sendCommand((char*)request, n, buffer, 5);
-
-      if (buffer[4] <= 1) {
-        value = buffer[4];
-      } else {
-        value = 0;
-      }
-
-      return value;
-    }
-
-
-    constexpr const char* MSG_NEEDPAIRING = "Need Pairing";
-    constexpr const char* MSG_CHECKWIFI   = "Check Wifi";
-    constexpr const char* MSG_CHECKTX     = "Check TX";
-    constexpr const char* MSG_CHECKPROXY  = "Check Proxy";
-    constexpr const char* MSG_TX_UP       = "TX connected";
-    constexpr const char* MSG_TX_DOWN     = "TX disconnected";
-
-    // Manage connexion error
-    bool checkConnection()
-    {
-      HTTPClient http;
-
-      uint16_t httpCode;
-
-      const char *message = nullptr;
-      String command = "";
-      String response = "";
-
-      const char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x03, 0xFD};
-      char s[4];
-
-      Settings::lock = false;
-
-      for (uint8_t i = 0; i < 6; i++) {
-        sprintf(s, "%02x,", request[i]);
-        command += String(s);
-      }
-
-      command += BAUDE_RATE + String(",") + SERIAL_DEVICE;
-
-      if (screenshot == false) {
-        if (IC_MODEL == 705 && IC_CONNECT == BT && bluetooth::connected == false) {
-          message = MSG_NEEDPAIRING;
-        } else if (IC_CONNECT == USB && wifi::connected == false) {
-          message = MSG_CHECKWIFI;
-        } else if (IC_CONNECT == USB && (proxyConnected == false || txConnected == false)) {
-          http.begin(civClient, PROXY_URL + String(":") + PROXY_PORT + String("/") + String("?civ=") + command); // Specify the URL
-          http.addHeader("User-Agent", "M5Stack");                                                               // Specify header
-          http.addHeader("Connection", "keep-alive");                                                            // Specify header
-          http.setTimeout(100);                                                                                  // Set Time Out
-          httpCode = http.GET();                                                                                 // Make the request
-          if (httpCode == 200) {
-            proxyConnected = true;
-
-            response = http.getString(); // Get data
-            response.trim();
-
-            if (response != "") {
-              Serial.println( MSG_TX_UP );
-              txConnected = true;
-              //message = nullptr;
-            } else {
-              Serial.println( MSG_TX_DOWN );
-              txConnected = false;
-              message = MSG_CHECKTX;
-            }
-          } else {
-            message = MSG_CHECKPROXY;
-          }
-          http.end();
+        // Fill filesize, width and heigth in the header array
+        for (uint8_t i = 0; i < 4; i++) {
+          header[2 + i] = (char)((filesize >> (8 * i)) & 255);
+          header[18 + i] = (char)((image_width >> (8 * i)) & 255);
+          header[22 + i] = (char)((image_height >> (8 * i)) & 255);
         }
 
-        // Shutdown screen if no TX connexion
-        if (wakeup == true && startup == false) {
-          if ((IC_CONNECT == BT && bluetooth::connected == false) || (IC_CONNECT == USB && txConnected == false)) {
-            tft.sleep();
-            wakeup = false;
-          }
-        } else if (wakeup == false && startup == false) {
-          if ((IC_CONNECT == BT && bluetooth::connected == true) || (IC_CONNECT == USB && txConnected == true)) {
-            clearData();
-            UI::draw();
-            tft.wakeup();
-            wakeup = true;
-            ScreenSaver::timer = millis();
-          }
+        // Write the header to the file
+        webClient.write(header, 54);
+
+        // To keep the required memory low, the image is captured line by line, initialize padded pixel with 0
+        for (uint16_t i = (image_width - 1) * 3; i < (image_width * 3 + pad); i++) {
+          line_data[i] = 0;
         }
-
-        // View message
-        if ( message ) {
-          Settings::lock = true;
-
-          if (ScreenSaver::mode == false && Settings::mode == false) {
-            tft.setTextSize(1);
-            tft.setTextDatum(CC_DATUM);
-            tft.setFont(&stencilie16pt7b);
-            tft.setTextPadding(194);
-            tft.setTextColor( Theme::fgcolor, Theme::bgcolor );
-            tft.drawString( message, 160, 180 );
-            vTaskDelay(750);
-            tft.drawString( "", 160, 180 ); // ??
-            frequencyOld = "";
-            Settings::lock = false;
-            vTaskDelay(250);
-            return false;
-          } else {
-            Settings::lock = false;
-            vTaskDelay(1000);
-            return false;
+        // The coordinate origin of a BMP image is at the bottom left. therefore, the image must be read from bottom to top.
+        for (uint16_t y = image_height; y > 0; y--) {
+          // Get one line of the screen content
+          tft.readRectRGB(0, y - 1, image_width, 1, line_data);
+          // BMP color order is: Blue, Green, Red
+          // Return values from readRectRGB is: Red, Green, Blue
+          // Therefore: R und B need to be swapped
+          for (uint16_t x = 0; x < image_width; x++) {
+            swap = line_data[x * 3];
+            line_data[x * 3] = line_data[x * 3 + 2];
+            line_data[x * 3 + 2] = swap;
           }
+          // Write the line to the file
+          webClient.write(line_data, (image_width * 3) + pad);
         }
-      }
-      return true;
-    }
-
-
-    bool M5Screen24bmp()
-    {
-      uint16_t image_height = tft.height();
-      uint16_t image_width = tft.width();
-      const uint16_t pad = (4 - (3 * image_width) % 4) % 4;
-      uint32_t filesize = 54 + (3 * image_width + pad) * image_height;
-      unsigned char swap;
-      unsigned char line_data[image_width * 3 + pad];
-      unsigned char header[54] = {
-          'B', 'M',    // BMP signature (Windows 3.1x, 95, NT, …)
-          0, 0, 0, 0,  // Image file size in bytes
-          0, 0, 0, 0,  // Reserved
-          54, 0, 0, 0, // Start of pixel array
-          40, 0, 0, 0, // Info header size
-          0, 0, 0, 0,  // Image width
-          0, 0, 0, 0,  // Image height
-          1, 0,        // Number of color planes
-          24, 0,       // Bits per pixel
-          0, 0, 0, 0,  // Compression
-          0, 0, 0, 0,  // Image size (can be 0 for uncompressed images)
-          0, 0, 0, 0,  // Horizontal resolution (dpm)
-          0, 0, 0, 0,  // Vertical resolution (dpm)
-          0, 0, 0, 0,  // Colors in color table (0 = none)
-          0, 0, 0, 0}; // Important color count (0 = all colors are important)
-
-      // Fill filesize, width and heigth in the header array
-      for (uint8_t i = 0; i < 4; i++) {
-        header[2 + i] = (char)((filesize >> (8 * i)) & 255);
-        header[18 + i] = (char)((image_width >> (8 * i)) & 255);
-        header[22 + i] = (char)((image_height >> (8 * i)) & 255);
+        return true;
       }
 
-      // Write the header to the file
-      httpClient.write(header, 54);
 
-      // To keep the required memory low, the image is captured line by line, initialize padded pixel with 0
-      for (uint16_t i = (image_width - 1) * 3; i < (image_width * 3 + pad); i++) {
-        line_data[i] = 0;
-      }
-      // The coordinate origin of a BMP image is at the bottom left. therefore, the image must be read from bottom to top.
-      for (uint16_t y = image_height; y > 0; y--) {
-        // Get one line of the screen content
-        tft.readRectRGB(0, y - 1, image_width, 1, line_data);
-        // BMP color order is: Blue, Green, Red
-        // Return values from readRectRGB is: Red, Green, Blue
-        // Therefore: R und B need to be swapped
-        for (uint16_t x = 0; x < image_width; x++) {
-          swap = line_data[x * 3];
-          line_data[x * 3] = line_data[x * 3 + 2];
-          line_data[x * 3 + 2] = swap;
-        }
-        // Write the line to the file
-        httpClient.write(line_data, (image_width * 3) + pad);
-      }
-      return true;
-    }
+      // Get screenshot
+      void check()
+      {
+        unsigned long timeout_millis = millis() + 3000;
+        String currentLine = "";
 
+        if (WiFi.status() == WL_CONNECTED) {
+          webClient = httpServer.available();
+          // webClient.setNoDelay(1);
+          if (webClient) {
+            // Force a disconnect after 3 seconds
+            // Serial.println("New Client.");
+            while (webClient.connected()) { // Loop while the client's connected
+              if (millis() > timeout_millis) { // If the client is still connected after 3 seconds, something is wrong. So kill the connection
+                // Serial.println("Force Client stop!");
+                webClient.stop();
+              }
+              // If there's bytes to read from the client,
+              if (webClient.available()) {
+                capture = true;
+                char c = webClient.read();
+                Serial.write(c);
+                // If the byte is a newline character
+                if (c == '\n') {
+                  // Two newline characters in a row (empty line) are indicating the end of the client HTTP request, so send a response:
+                  if (currentLine.length() == 0) {
+                    // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK) and a content-type so the client knows what's coming, then a blank line, followed by the content:
+                    ScreenSaver::reset(); // Screensaver update !!!
 
-    // Get screenshot
-    void checkScreenshot()
-    {
-      unsigned long timeout_millis = millis() + 3000;
-      String currentLine = "";
-
-      if (WiFi.status() == WL_CONNECTED) {
-        httpClient = httpServer.available();
-        // httpClient.setNoDelay(1);
-        if (httpClient) {
-          // Force a disconnect after 3 seconds
-          // Serial.println("New Client.");
-          while (httpClient.connected()) { // Loop while the client's connected
-            if (millis() > timeout_millis) { // If the client is still connected after 3 seconds, something is wrong. So kill the connection
-              // Serial.println("Force Client stop!");
-              httpClient.stop();
-            }
-            // If there's bytes to read from the client,
-            if (httpClient.available()) {
-              screenshot = true;
-              char c = httpClient.read();
-              Serial.write(c);
-              // If the byte is a newline character
-              if (c == '\n') {
-                // Two newline characters in a row (empty line) are indicating the end of the client HTTP request, so send a response:
-                if (currentLine.length() == 0) {
-                  // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK) and a content-type so the client knows what's coming, then a blank line, followed by the content:
-                  ScreenSaver::timer = millis(); // Screensaver update !!!
-
-                  switch (htmlGetRequest) {
-                    case GET_index_page:
-                      {
-                        httpClient.println("HTTP/1.1 200 OK");
-                        httpClient.println("Content-type:text/html");
-                        httpClient.println();
-                        if (M5.getBoard() == m5::board_t::board_M5Stack) {
-                          httpClient.write_P(index_m5stack_html, sizeof(index_m5stack_html));
-                        } else if (M5.getBoard() == m5::board_t::board_M5StackCore2) {
-                          httpClient.write_P(index_core2_html, sizeof(index_core2_html));
+                    switch (htmlGetRequest) {
+                      case GET_index_page:
+                        {
+                          webClient.println("HTTP/1.1 200 OK");
+                          webClient.println("Content-type:text/html");
+                          webClient.println();
+                          if (M5.getBoard() == m5::board_t::board_M5Stack) {
+                            webClient.write_P(index_m5stack_html, sizeof(index_m5stack_html));
+                          } else if (M5.getBoard() == m5::board_t::board_M5StackCore2) {
+                            webClient.write_P(index_core2_html, sizeof(index_core2_html));
+                          }
+                          break;
                         }
+                      case GET_screenshot:
+                        {
+                          webClient.println("HTTP/1.1 200 OK");
+                          webClient.println("Content-type:image/bmp");
+                          webClient.println();
+                          M5Screen24bmp();
+                          vTaskDelay(1000);
+                          capture = false;
+                          break;
+                        }
+                      default:
+                        webClient.println("HTTP/1.1 404 Not Found");
+                        webClient.println("Content-type:text/html");
+                        webClient.println();
+                        webClient.print("404 Page not found.<br>");
                         break;
+                    }
+                    // The HTTP response ends with another blank line:
+                    // webClient.println();
+                    // Break out of the while loop:
+                    break;
+
+                  } else { // if a newline is found
+                    // Analyze the currentLine:
+                    if (currentLine.startsWith("GET /")) { // Detect the specific GET requests:
+                      htmlGetRequest = GET_unknown;
+
+                      if (currentLine.startsWith("GET / ")) { // If no specific target is requested
+                        htmlGetRequest = GET_index_page;
                       }
-                    case GET_screenshot:
-                      {
-                        httpClient.println("HTTP/1.1 200 OK");
-                        httpClient.println("Content-type:image/bmp");
-                        httpClient.println();
-                        M5Screen24bmp();
-                        vTaskDelay(1000);
-                        screenshot = false;
-                        break;
+
+                      if (currentLine.startsWith("GET /screenshot.bmp")) { // If the screenshot image is requested
+                        htmlGetRequest = GET_screenshot;
                       }
-                    default:
-                      httpClient.println("HTTP/1.1 404 Not Found");
-                      httpClient.println("Content-type:text/html");
-                      httpClient.println();
-                      httpClient.print("404 Page not found.<br>");
-                      break;
+
+                      if (currentLine.startsWith("GET /buttonLeft")) { // If the button left was pressed on the HTML page
+                        buttonLeftPressed = true;
+                        htmlGetRequest = GET_index_page;
+                      }
+
+                      if (currentLine.startsWith("GET /buttonCenter")) { // If the button center was pressed on the HTML page
+                        buttonCenterPressed = true;
+                        htmlGetRequest = GET_index_page;
+                      }
+
+                      if (currentLine.startsWith("GET /buttonRight")) { // If the button right was pressed on the HTML page
+                        buttonRightPressed = true;
+                        htmlGetRequest = GET_index_page;
+                      }
+                    }
+                    currentLine = "";
                   }
-                  // The HTTP response ends with another blank line:
-                  // httpClient.println();
-                  // Break out of the while loop:
-                  break;
-
-                } else { // if a newline is found
-                  // Analyze the currentLine:
-                  if (currentLine.startsWith("GET /")) { // Detect the specific GET requests:
-                    htmlGetRequest = GET_unknown;
-
-                    if (currentLine.startsWith("GET / ")) { // If no specific target is requested
-                      htmlGetRequest = GET_index_page;
-                    }
-
-                    if (currentLine.startsWith("GET /screenshot.bmp")) { // If the screenshot image is requested
-                      htmlGetRequest = GET_screenshot;
-                    }
-
-                    if (currentLine.startsWith("GET /buttonLeft")) { // If the button left was pressed on the HTML page
-                      buttonLeftPressed = true;
-                      htmlGetRequest = GET_index_page;
-                    }
-
-                    if (currentLine.startsWith("GET /buttonCenter")) { // If the button center was pressed on the HTML page
-                      buttonCenterPressed = true;
-                      htmlGetRequest = GET_index_page;
-                    }
-
-                    if (currentLine.startsWith("GET /buttonRight")) { // If the button right was pressed on the HTML page
-                      buttonRightPressed = true;
-                      htmlGetRequest = GET_index_page;
-                    }
-                  }
-                  currentLine = "";
+                } else if (c != '\r') { // Add anything else than a carriage return character to the currentLine
+                  currentLine += c;
                 }
-              } else if (c != '\r') { // Add anything else than a carriage return character to the currentLine
-                currentLine += c;
               }
             }
-          }
 
-          httpClient.stop(); // Close the connection
-          // Serial.println("Client Disconnected.");
-          vTaskDelay(100);
+            webClient.stop(); // Close the connection
+            // Serial.println("Client Disconnected.");
+            vTaskDelay(100);
+          }
         }
       }
-    }
 
+    }
 
   };
 

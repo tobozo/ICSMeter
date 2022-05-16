@@ -9,75 +9,66 @@ namespace ICSMeter
     namespace Battery
     {
 
-      using namespace Theme;
+      uint8_t oldValue = 0;
+      bool oldChargingState = true;
+      const String ICText = String(IC_MODEL) + String(IC_CONNECT == BT ? " BT" : " USB");
+      const uint8_t battery_min_level = 0;
+      const uint8_t battery_max_level = 100;
 
-
-      // Get Battery level
-      int8_t getLevel(bool type)
+      int8_t getLevel(bool type) // Get Battery level
       {
         return M5.Power.getBatteryLevel();
       }
 
-      // Control if charging
-      bool isCharging()
+
+      bool isCharging() // Control if charging
       {
         return M5.Power.isCharging();
       }
 
 
-      // Print battery
-      void draw()
+      void reset()
+      {
+        oldValue         = 0;
+        oldChargingState = true;
+      }
+
+
+      void draw( bool force_redraw ) // Print battery
       {
         uint8_t batteryLevel;
         bool batteryCharging;
 
-        if (ScreenSaver::mode || Settings::mode ) return;
+        if(ScreenSaver::mode || Settings::mode ) return;
 
         // On left, view battery level
-        batteryLevel = map(getBatteryLevel(1), 0, 100, 0, 16);
+        batteryLevel = map(getLevel(1), battery_min_level, battery_max_level, 0, 16);
         batteryCharging = isCharging();
 
-        if( batteryLevel == levelOld && batteryCharging == charginglOld ) return;
+        if( !force_redraw && ( batteryLevel == oldValue && batteryCharging == oldChargingState ) ) return;
 
-        drawTop();
+        CSS::drawStyledBox( &tft, ICText.c_str(), 4, 4, 56, 13, &Theme::BadgeBoxStyle );
 
-        // Settings
-        tft.setFont(0);
-        tft.setTextSize(1);
-        tft.setTextDatum(CC_DATUM);
+        oldValue = batteryLevel;
+        oldChargingState = batteryCharging;
 
-        tft.fillRoundRect(4, 4, 56, 13, 2, TFT_MODE_BACK);
-        tft.drawRoundRect(4, 4, 56, 13, 2, TFT_MODE_BORDER);
-        tft.setTextColor(TFT_WHITE);
+        // draw battery icon
+        tft.drawRect(294, 4, 20, 12, Theme::layout->fgcolor);
+        tft.drawRect(313, 7, 4,  6,  Theme::layout->fgcolor);
+        tft.fillRect(296, 6, batteryLevel, 8, Theme::layout->fgcolor);
 
-        if (IC_CONNECT == BT) {
-          tft.drawString(String(IC_MODEL) + " BT", 32, 11);
-        } else {
-          tft.drawString(String(IC_MODEL) + " USB", 32, 11);
-        }
+        CSS::setFontStyle( &tft, Theme::BadgeBoxStyle.fontStyle );
 
-        // tft.drawFastHLine(0, 20, 320, TFT_BLACK);
-
-        levelOld = batteryLevel;
-        charginglOld = batteryCharging;
-
-        tft.drawRect(294, 4, 20, 12, Theme::fgcolor);
-        tft.drawRect(313, 7, 4, 6, Theme::fgcolor);
-        tft.fillRect(296, 6, batteryLevel, 8, Theme::fgcolor);
-
-        tft.setTextColor(Theme::fgcolor);
-        tft.setFont(0);
+        tft.setTextPadding(0);
+        tft.setTextColor(Theme::layout->fgcolor);
 
         if (batteryCharging) {
-          tft.setTextDatum(CC_DATUM);
-          tft.setTextPadding(0);
-          tft.drawString("+", 290, 11);
+          CSS::drawStyledString( &tft, "+", 290, 11, nullptr );
         } else {
-          tft.setTextDatum(CR_DATUM);
-          tft.setTextPadding(0);
-          tft.drawString(String(getBatteryLevel(1)) + "%", 290, 11);
+          tft.setTextDatum(MR_DATUM);
+          String val = String(getLevel(1)) + "%"; // TODO: sprintf this
+          CSS::drawStyledString( &tft, val.c_str(), 290, 11, nullptr );
         }
-
       }
 
 
