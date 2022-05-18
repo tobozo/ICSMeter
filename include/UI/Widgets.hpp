@@ -36,10 +36,12 @@ namespace ICSMeter
 
     namespace Needle
     {
+      void setup();
       void reset();
       bool needs_redraw();
+      void onThemeChange();
       void set( float _angle );
-      void draw();
+      void draw( bool force_redraw = false );
       void draw(float_t angle, uint16_t a = 0, uint16_t b = 200, uint16_t c = 0, uint16_t d = 100); // Print needle
     };
 
@@ -67,22 +69,20 @@ namespace ICSMeter
 
     namespace Settings
     {
-      bool   mode     = false;
-      bool   lock     = true;
-      bool   select   = false;
+      bool   dialog_enabled = false;
       int8_t choice = 0;
       void   draw();
       void   handle(); // called from task
       void   handleSettings();
       void   handleBrowsing();
-      void   drawMenu(uint8_t x, uint8_t y, uint16_t w, uint8_t h);
-      void   drawOption(int8_t settingsChoice, bool settingsSelect, uint8_t x, uint8_t y, uint16_t w); // option choice decorator
+      void   drawMenu();
+      void   drawOptions(); // option choice decorator
     };
 
 
     namespace ScreenSaver
     {
-      bool mode = false;
+      bool enabled = false;
       void shutdown();
       void reset();
       void handle();

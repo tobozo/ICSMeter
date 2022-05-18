@@ -24,24 +24,20 @@ namespace ICSMeter
       Needle::reset();
       Measure::reset();
       Battery::reset();
+      //DataMode::reset();
+      //Transverter::reset();
     }
 
 
-    void buttonTask(void *pvParameters)
+    void netTask(void *pvParameters)
     {
       for (;;) {
 
+        // do NOT draw from this task
+
         screenshot::check(); // check for queued screenshot request
-        checkButtons();    // check buttons status
 
-        if(btnA || btnB || btnC) {
-          ScreenSaver::reset();
-        }
-
-        Beeper::handle();
-        Settings::handle();
-
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay( 10 );
       }
     }
 

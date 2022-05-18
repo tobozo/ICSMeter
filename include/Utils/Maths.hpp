@@ -6,7 +6,7 @@ namespace ICSMeter
   {
 
     // Manage rotation
-    static void rotate(uint16_t *x, uint16_t *y, float angle)
+    void rotate(uint16_t *x, uint16_t *y, float angle)
     {
       float xNew;
       float yNew;
@@ -26,7 +26,7 @@ namespace ICSMeter
 
 
     // Manage map float
-    static float mapFloat(float x, float in_min, float in_max, float out_min, float out_max)
+    float mapFloat(float x, float in_min, float in_max, float out_min, float out_max)
     {
       return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
     }

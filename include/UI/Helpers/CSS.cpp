@@ -71,7 +71,7 @@ namespace ICSMeter
 
       int32_t tx, ty;
       uint16_t tw = spriteCSS->textWidth( str );
-      uint16_t th = spriteCSS->fontHeight();
+      __attribute__((unused)) uint16_t th = spriteCSS->fontHeight();
 
       bool wrap = true;
       switch( boxStyle->fontStyle->textStyle->datum ) {
@@ -84,6 +84,7 @@ namespace ICSMeter
         case BL_DATUM: tx=boxStyle->paddingX; ty=h-1;                wrap = true;  break;
         case BC_DATUM: tx=w/2;                ty=h-1;                wrap = false; break;
         case BR_DATUM: tx=w-tw-1;             ty=h-1;                wrap = true;  break;
+        default: tx=boxStyle->paddingX;       ty=boxStyle->paddingY; wrap = false; break;
       }
       spriteCSS->setTextWrap(wrap);
       spriteCSS->drawString( str, tx, ty );

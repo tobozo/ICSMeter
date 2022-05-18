@@ -25,7 +25,8 @@ namespace ICSMeter
 
       void save()
       {
-        if( theme != themeOld ) {
+        int8_t tmp = getPref("theme", 0 );
+        if( theme != tmp ) {
           setPref("theme", theme);
           themeOld = theme;
         }
@@ -51,15 +52,18 @@ namespace ICSMeter
       const image_t bottomDark        = { 16, smeterBottomDark      , sizeof(smeterBottomDark       ), IMAGE_JPG, 320, 80  };
       const image_t *middleDarkPtr    = (IC_MODEL == 705) ? &middle10Dark : &middle100Dark;
 
-      const layout_t classic = { &topClassic, middleClassicPtr, &bottomClassic, TFT_FRONT_CLASSIC, TFT_BACK_CLASSIC };
-      const layout_t dark    = { &topDark,    middleDarkPtr,    &bottomDark,    TFT_FRONT_DARK,    TFT_BACK_DARK    };
+      const layout_t layoutClassic = { &topClassic, middleClassicPtr, &bottomClassic, TFT_FRONT_CLASSIC, TFT_BACK_CLASSIC };
+      const layout_t layoutDark    = { &topDark,    middleDarkPtr,    &bottomDark,    TFT_FRONT_DARK,    TFT_BACK_DARK    };
+
+      //const image_t bgImageClassic   = { 16, smeterFullClassic,      smeterFullClassic_len,           IMAGE_JPG, 320, 240 };
+      //const image_t bgImageDark      = { 16, smeterFullClassic,      smeterFullClassic_len,           IMAGE_JPG, 320, 240 };
 
       // CSS declarations
 
       const TextStyle_t BadgeTextStyle =
       {
-        .fgColor   = TFT_MENU_SELECT,
-        .bgColor   = TFT_MENU_BACK,
+        .fgColor   = SettingsMenuLightColor,
+        .bgColor   = SettingsMenuBgColor,
         .size      = 1,
         .datum     = MC_DATUM,
         .paddingX  = 24
@@ -69,8 +73,8 @@ namespace ICSMeter
       const TextBoxStyle_t BadgeBoxStyle =
       {
         .fontStyle    = &BadgeFontStyle,
-        .fillColor    = TFT_MENU_BACK,
-        .borderColor  = TFT_MENU_BORDER,
+        .fillColor    = SettingsMenuBgColor,
+        .borderColor  = SettingsMenuBorderColor,
         .borderWidth  = 1,  // set to 0 to disable border
         .borderRadius = 2,
         .paddingX     = 0,
@@ -101,8 +105,9 @@ namespace ICSMeter
 
       // Actual themed values
       const char        *choices[THEMES_COUNT]          = {"CLASSIC",            "DARK"}; // labels for settings menu
-      const layout_t    *layouts[THEMES_COUNT]          = { &classic,            &dark }; // pointers to layouts
+      const layout_t    *layouts[THEMES_COUNT]          = { &layoutClassic,      &layoutDark }; // pointers to layouts
       const FontStyle_t *H3FontStyleTheme[THEMES_COUNT] = { &H3FontStyleClassic, &H3FontStyleDark }; // pointers to font styles
+      //const image_t *bgImageTheme[THEMES_COUNT] = { &bgImageClassic, &bgImageDark };
 
 
     };

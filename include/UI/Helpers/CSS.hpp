@@ -9,7 +9,7 @@ namespace ICSMeter
   namespace CSS
   {
 
-    typedef const std::uint32_t boxcolor_t; // just a shorhand so the next struct declaration has less code density :)
+    typedef std::uint32_t boxcolor_t; // just a shorhand so the next struct declaration has less code density :)
     typedef std::uint32_t textcolor_t; // just a shorhand so the next struct declaration has less code density :)
     typedef const bool transparency_t;
 
@@ -19,8 +19,8 @@ namespace ICSMeter
     // same struct as lgfx::TextStyle without the defaults
     struct TextStyle_t
     {
-      const textcolor_t fgColor  ;// = 0xFFFFFFU;
-      const textcolor_t bgColor  ;// = 0;
+      textcolor_t fgColor  ;// = 0xFFFFFFU;
+      textcolor_t bgColor  ;// = 0;
       const float       size     ;// = 1;
       const textdatum_t datum    ;// = textdatum_t::top_left;
       const uint32_t    paddingX ;// = 0;

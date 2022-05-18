@@ -29,11 +29,11 @@ namespace ICSMeter
 
       const TextStyle_t primaryTextStyle =
       {
-        .fgColor   = 0xffffffU,
-        .bgColor   = 0x000000U,
-        .size      = 190,
+        .fgColor   = 0x000000U,
+        .bgColor   = 0xffffffU,
+        .size      = 1,
         .datum     = MC_DATUM,
-        .paddingX  = 160
+        .paddingX  = 190
       };
 
       const TextStyle_t secondaryTextStyle =
@@ -42,7 +42,7 @@ namespace ICSMeter
         .bgColor   = 0x000000U,
         .size      = 1,
         .datum     = MC_DATUM,
-        .paddingX  = 190
+        .paddingX  = 160
       };
 
 
@@ -59,9 +59,10 @@ namespace ICSMeter
 
       void save()
       {
-        if( value != oldValue ) {
+        int8_t tmp = getPref("measure", 1);
+        if( value != tmp ) {
           setPref("measure", value);
-          oldValue = value;
+          oldValue = tmp;
         }
       }
 
@@ -117,31 +118,20 @@ namespace ICSMeter
 
       void drawPrimaryValue(String valString, uint8_t x, uint8_t y)
       {
-        if (valString != olPrimaryValue)
-        {
-          olPrimaryValue = valString;
-
-          setFontStyle( &tft, &primaryFontStyle );
-
-          valString.replace(".", ",");
-
-          CSS::drawStyledString( &tft, valString.c_str(), x, y, nullptr );
-        }
+        olPrimaryValue = valString;
+        setFontStyle( &tft, &primaryFontStyle );
+        valString.replace(".", ",");
+        tft.setTextColor(Theme::layout->fgcolor, Theme::layout->bgcolor);
+        CSS::drawStyledString( &tft, valString.c_str(), x, y, nullptr );
       }
 
 
       void drawSecondaryValue(String valString, uint8_t x, uint8_t y)
       {
-        if (valString != oldSecondaryValue)
-        {
-          oldSecondaryValue = valString;
-
-          setFontStyle( &tft, &secondaryFontStyle );
-
-          tft.setTextColor(Theme::layout->fgcolor, Theme::layout->bgcolor);
-
-          CSS::drawStyledString( &tft, valString.c_str(), x, y, nullptr );
-        }
+        oldSecondaryValue = valString;
+        setFontStyle( &tft, &secondaryFontStyle );
+        tft.setTextColor(Theme::layout->fgcolor, Theme::layout->bgcolor);
+        CSS::drawStyledString( &tft, valString.c_str(), x, y, nullptr );
       }
 
 

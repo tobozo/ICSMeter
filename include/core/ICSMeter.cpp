@@ -33,52 +33,81 @@ namespace ICSMeter
     auto cfg = M5.config();
     M5.begin(cfg); // Init M5
 
+    LcdMux = false;
+
     loadPrefs();
 
     FSUpdater::binLoader();
 
     UI::setup();
-    UI::draw();
+
     UI::drawWidgets( true );
 
     net::setup();
 
-    xTaskCreatePinnedToCore( UI::buttonTask, "buttonTask", 8192, NULL, 4, NULL, 1);
+    #if defined DEMO_MODE
+      DataMode::setFilter( "FIL1" );
+      DataMode::setMode( "USB" );
+      Measure::setPrimaryValue( "S 9.06 db");
+      Measure::setSecondaryValue( "14.235.000" );
+    #endif
+
+    xTaskCreatePinnedToCore( UI::netTask, "netTask", 8192, NULL, 4, NULL, 1);
+
   }
 
 
   void loop() // Main Loop
   {
+    checkButtons(); // check buttons status
+
+    takeLcdMux(); // this will wait for current screen capture to finish
+                  // and prevent further screen capture to be performed while drawing
+                  // until giveLcdMux() is called
+
     ScreenSaver::handle(); // check if Screen Saver needs enabling
-
-    if(net::connected()) {
-      uint8_t tx = getTX(); // check connection health
-      if(tx != 0) ScreenSaver::reset(); // If transmit, refresh tempo
-
-      if ( UI::canDrawUI() && screenshot::capture == false  ) {
-        Settings::lock = true;
-
-        ICScan();
-        FastLed::set( tx );
-        UI::drawWidgets();
-
-        Settings::lock = false;
-      }
+    if( ScreenSaver::enabled ) {
+      giveLcdMux();
+      return;
     }
 
-    #if DEBUG==1
-      Serial.print(ScreenSaver::mode);
-      Serial.print(" ");
-      Serial.print(millis() - ScreenSaver::timer);
-      Serial.print(" ");
-      Serial.println(ScreenSaver::countdown * 60 * 1000);
+    Settings::handle();
+    if( Settings::dialog_enabled ) {
+      giveLcdMux();
+      return;
+    }
+
+    #if defined DEMO_MODE
+      /********** Needle DEMO MODE BEGIN ******/
+      static float random_angle = 0.0;
+      Needle::ICSGauge->easeNeedle( 300 ); // 300ms easing
+      if( (millis()/1259)%2== 0 ) {
+        random_angle = ( (rand()%9000) / 100.0 );
+        Needle::ICSGauge->setNeedle( random_angle );
+        UI::drawWidgets();
+      }
+      /********** Needle DEMO MODE END ******/
+      giveLcdMux();
+      return;
     #endif
+
+
+    if(net::connected()) {
+      uint8_t tx = getTX(); // check connection health, retrieve last status
+      if(tx != 0) ScreenSaver::reset(); // If transmit, refresh tempo
+      ICScan();
+      FastLed::set( tx );
+      UI::drawWidgets();
+    }
+
+    giveLcdMux();
+
   }
 
 
   void checkButtons()
   {
-    const uint32_t buttons_poll_delay = 30; // min delay (milliseconds) between each button poll
+    const uint32_t buttons_poll_delay = 0; // min delay (milliseconds) between each button poll
     static uint32_t last_button_poll = millis();
     uint32_t now = millis();
 
@@ -88,8 +117,12 @@ namespace ICSMeter
     M5.update();
 
     btnA = M5.BtnA.isPressed();
-    btnB = M5.BtnB.isPressed();
+    btnB = M5.BtnB.wasPressed(); // no repeat on this one
     btnC = M5.BtnC.isPressed();
+
+    if( btnA || btnB || btnC ) ScreenSaver::reset();
+    Beeper::handle();    // handle beep
+
   }
 
 
@@ -102,6 +135,7 @@ namespace ICSMeter
     Beeper::setup();
     ScreenSaver::setup();
     Theme::setup();
+    Needle::setup();
     Measure::setup();
     Transverter::setup();
 

@@ -29,7 +29,11 @@ namespace ICSMeter
 
       void save()
       {
-        setPref("brightness", brightness);
+        uint8_t tmp = getPref("brightness", 64);
+        if( tmp != brightness ) {
+          setPref("brightness", brightness);
+          brightnessOld = tmp;
+        }
       }
 
 

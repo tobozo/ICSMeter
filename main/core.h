@@ -20,6 +20,7 @@
 #include <FS.h>
 #include <SPIFFS.h>
 #include <M5Unified.h>
+#include <LGFXMeter.h>
 
 #if IC_CONNECT==BT && IC_MODEL==705
   #include <BluetoothSerial.h>
@@ -33,7 +34,7 @@
 
 #include <M5StackUpdater.h>
 
-#define DEBUG              1
+#define DEBUG              0
 #define VERSION            "0.1.5"
 #define AUTHOR             "F4HWN"
 #define NAME               "ICSMeter"
@@ -46,3 +47,5 @@
 #define NUM_LEDS           10
 #define Neopixel_PIN       32 // 21
 #define NUM_LEDS_STRIP     30
+
+//#define DEMO_MODE // this is for debugging or demonstrating the needle, don't use in production!

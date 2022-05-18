@@ -8,7 +8,7 @@ namespace ICSMeter
   {
 
     void clearData();
-    void buttonTask(void *pvParameters); // Get Button task
+    void netTask(void *pvParameters); // Get Button task
 
   };
 };

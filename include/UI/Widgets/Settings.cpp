@@ -15,18 +15,24 @@ namespace ICSMeter
       using namespace modules;
       using namespace CSS;
 
-      uint32_t menu_delay = 150; // typematic button rate
+      uint32_t menu_delay = 150; // variable typematic button rate
+      bool setting_selected = false;
 
-      int32_t  x = 44;
-      int32_t  y = 4;
-      uint32_t w = 320 - (x * 2);
-      uint32_t h = 185;
-
+      constexpr const char* SETTINGS_LABEL = "SETTINGS";
+      const uint8_t MAX_ITEMS_IN_SETTINGS_MENU = 7;
+      const uint32_t w = 232;
+      const uint32_t h = 185;           // TODO: dynamize this
+      const int32_t  x = (320/2)-(w/2); // TODO: dynamize this
+      const int32_t  y = 4;
+      const uint32_t hmiddle = 160;
+      const uint32_t titleYpos = 179;
+      const uint32_t rulerTitleYpos = y + 36;
+      const uint32_t rulerValueYpos = y + (h - 24);
 
       const TextStyle_t SettingsStyle =
       {
-        .fgColor   = TFT_MENU_SELECT,
-        .bgColor   = TFT_MENU_BACK,
+        .fgColor   = SettingsMenuLightColor,
+        .bgColor   = SettingsMenuBgColor,
         .size      = 1,
         .datum     = MC_DATUM,
         .paddingX  =  w - 2
@@ -52,7 +58,9 @@ namespace ICSMeter
       void onSetScreensaverDelay  ();
       void onShowIPAddress        ();
       void onShowMacAddress       ();
-      void onExitSettingsMenu     ();
+      void exitSettingsMenu       ();
+      void onShutdown             ();
+      void onExit                 ();
 
       const settings_handler_t menuchoices[] =
       {
@@ -64,90 +72,50 @@ namespace ICSMeter
         { "Screensaver",      onSetScreensaverDelay   },
         { "IP Address",       onShowIPAddress         },
         { "Mac Address",      onShowMacAddress        },
-        { "Shutdown",         ScreenSaver::shutdown   },
-        { "Exit",             onExitSettingsMenu      },
+        { "Shutdown",         onShutdown              },
+        { "Exit Settings",    onExit                  },
       };
 
 
 
-      void drawMenu(uint8_t x, uint8_t y, uint16_t w, uint8_t h)
+      void setMenuDelay( uint32_t delay )
       {
-        tft.fillRoundRect(x, y, w, h, 8, TFT_MENU_BACK);
-        tft.drawRoundRect(x, y, w, h, 8, TFT_MENU_BORDER);
-
-        CSS::drawStyledString( &tft, "SETTINGS", 160, 14 + y, &H1FontStyle );
-        CSS::drawStyledString( &tft, APP_TITLE, 160, 28 + y, &H2FontStyle );
-
-        tft.drawFastHLine(120, 3, 80, Theme::layout->bgcolor);
-        tft.drawFastHLine(x + 1, 36 + y, w - 2, TFT_MENU_SELECT);
-        tft.drawFastHLine(x + 1, (y + h) - 24, w - 2, TFT_MENU_SELECT);
-      }
-
-
-      void draw()
-      {
-        // Enter settings menu
-        if(btnB) {
-          mode = true;
-          while(lock == true) {
-            vTaskDelay(10);
-          }
-          drawMenu(x, y, w, h);
-          drawOption(choice, select, x, y, w);
-        }
-      }
-
-
-      void drawOption(int8_t settingsChoice, bool settingsSelect, uint8_t x, uint8_t y, uint16_t w)
-      {
-        uint8_t start = 0;
-        uint8_t i, j;
-        size_t stop = sizeof(menuchoices) / sizeof(settings_handler_t);
-
-        if(settingsChoice > 6) {
-          start = settingsChoice - 6;
-        } else {
-          start = 0;
-        }
-
-        stop = start + 7;
-        j = 0;
-
-        CSS::setFontStyle( &tft, &LIFontStyle );
-
-        for(i = start; i < stop; i++) {
-
-          if(settingsChoice == i ) {
-            if( settingsSelect ) {
-              tft.setTextColor(TFT_BLACK, TFT_MENU_SELECT);
-            } else {
-              tft.setTextColor(TFT_MENU_BACK, TFT_MENU_SELECT);
-            }
-          } else {
-            tft.setTextColor(TFT_MENU_SELECT, TFT_MENU_BACK);
-          }
-
-          CSS::drawStyledString( &tft, menuchoices[i].label, 160, 45 + y + (j * 18), nullptr );
-
-          j++;
-          if(j > 7) j = 7;
-        }
+        menu_delay = delay;
+        Beeper::beepPause = delay/2;
       }
 
 
       void handle() // called repeatedly from a task loop
       {
-        if( !mode ) { // Render settings list
-          draw();
-          menu_delay = 300;
-        } else {
-          if( !select ) { // Browse setting list
-            handleBrowsing();
-          } else { // Manage setting
+        if( !dialog_enabled ) {
+          if( btnB ) { // entering settings menu
+            dialog_enabled   = true;
+            setting_selected = false;
+            choice = 0;
+            draw();
+          }
+          return;
+        }
+
+        if( btnA || btnB || btnC ) {
+          if( setting_selected ) { // editing a setting
             handleSettings();
+          } else {
+            handleBrowsing(); // browsing settings/selecting item
           }
         }
-        vTaskDelay(pdMS_TO_TICKS(menu_delay));
+
+        if( !dialog_enabled ) { // exiting settings menu
+          exitSettingsMenu();
+        }
+
+      }
+
+
+      void draw()
+      {
+        drawMenu();
+        drawOptions();
       }
 
 
@@ -156,223 +124,315 @@ namespace ICSMeter
         if( menuchoices[choice].callback ) {
           CSS::setFontStyle( &tft, &ULFontStyle );
           menuchoices[choice].callback();
+          drawOptions();
+          if( dialog_enabled ) vTaskDelay( menu_delay );
+        }
+      }
+
+
+      void exitSettingsMenu()
+      {
+        //clearData();
+        setMenuDelay( 500 );
+        setting_selected = false;
+        dialog_enabled   = false;
+        UI::drawWidgets( true );
+        log_d("Leaving settings menu");
+      }
+
+      void onShutdown()
+      {
+        CSS::drawStyledString( &tft, "", hmiddle, titleYpos, &ULFontStyle );
+        if(btnB) {
+          ScreenSaver::shutdown();
+        }
+      }
+
+
+      void onExit()
+      {
+        CSS::drawStyledString( &tft, "", hmiddle, titleYpos, &ULFontStyle );
+        if(btnB) {
+          dialog_enabled = false;
         }
       }
 
 
       void handleBrowsing()
       {
+        setMenuDelay( 500 );
+
+        if(btnB) {
+          setting_selected = !setting_selected;
+          if( strcmp( menuchoices[choice].label, "Shutdown" ) == 0 ) {
+            onShutdown();
+            return;
+          } else if( strcmp( menuchoices[choice].label, "Exit" ) == 0 ) {
+            onExit();
+            return;
+          }
+          btnB = false; // cancel bubble
+          handleSettings();
+          return;
+        }
+
         if(btnA || btnC) {
+          // settings items pagination
+          size_t lastIndex = (sizeof(menuchoices) / sizeof(settings_handler_t)) - 1;
+
           if(btnA) {
             choice--;
+            choice = (choice < 0) ? lastIndex : choice;
           } else if(btnC) {
             choice++;
+            choice = (choice > lastIndex) ? 0 : choice;
           }
-          // settings items pagination
-          size_t stop = sizeof(menuchoices) / sizeof(settings_handler_t);
-          stop--;
 
-          choice = (choice < 0) ? stop : choice;
-          choice = (choice > stop) ? 0 : choice;
-
-          drawOption(choice, select, x, y, w);
-
-          menu_delay = 150;
-
-        } else if(btnB) {
-          select = true;
-          drawOption(choice, select, x, y, w);
-          if( strcmp( menuchoices[choice].label, "Shutdown" ) == 0 ) {
-            ScreenSaver::shutdown();
-          } else if( strcmp( menuchoices[choice].label, "Exit" ) == 0 ) {
-            onExitSettingsMenu();
-          }
+          btnA = btnB = btnC = false; // cancel bubble
+          handleSettings();
+          return;
         }
-      }
-
-
-      void onExitSettingsMenu()
-      {
-        clearData();
-        select = false;
-        mode = false;
-        UI::drawWidgets( true );
-        vTaskDelay(pdMS_TO_TICKS(300));
       }
 
 
       void onChangeMeasuredValues()
       {
-        CSS::drawStyledString( &tft, Measure::choices[Measure::value], 160, h - 6, &ULFontStyle );
-
+        setMenuDelay( 300 );
         if(btnA || btnC) {
-          if(btnA == 1) {
+          if(btnA) {
             Measure::value -= 1;
-            if(Measure::value < 0) {
-              Measure::value = 2;
-            }
-          } else if(btnC == 1) {
+            if(Measure::value < 0) Measure::value = 2;
+          }
+          if(btnC) {
             Measure::value += 1;
-            if(Measure::value > 2) {
-              Measure::value = 0;
-            }
+            if(Measure::value > 2) Measure::value = 0;
           }
           Measure::drawLabels( true );
-          menu_delay = 300;
-        } else if(btnB == 1) {
+        }
+
+        CSS::drawStyledString( &tft, Measure::choices[Measure::value], hmiddle, titleYpos, &ULFontStyle );
+
+        if(btnB) {
           Measure::save();
-          onExitSettingsMenu();
+          setting_selected = false;
+          return;
         }
       }
 
 
       void onSwitchTheme()
       {
-        CSS::drawStyledString( &tft, Theme::choices[Theme::theme], 160, h - 6, &ULFontStyle );
-
+        setMenuDelay( 300 );
         if(btnA || btnC) {
-
-          if(btnA == 1) {
-            if( Theme::theme > 0 ) Theme::theme--;
-            else Theme::theme = Theme::THEMES_COUNT-1;
-          } else if(btnC == 1) {
-            if( Theme::theme+2 <= Theme::THEMES_COUNT ) Theme::theme++;
-            else Theme::theme = 0;
+          if(btnA) {
+            Theme::theme = (Theme::theme+1)%Theme::THEMES_COUNT;
           }
-          menu_delay = 300;
+          if(btnC) {
+            Theme::theme = (Theme::theme+Theme::THEMES_COUNT-1)%Theme::THEMES_COUNT;
+          }
           Theme::set();
+          Needle::onThemeChange();
           UI::drawWidgets( true );
-          drawMenu(x, y, w, h);
-          drawOption(choice, select, x, y, w);
+          drawMenu();
+        }
 
-        } else if(btnB == 1) {
-          if(Theme::themeOld != Theme::theme) {
-            Theme::themeOld = Theme::theme;
-            Theme::save();
-          }
-          onExitSettingsMenu();
+        CSS::drawStyledString( &tft, Theme::choices[Theme::theme], hmiddle, titleYpos, &ULFontStyle );
+
+        if(btnB) {
+          Theme::save();
+          setting_selected = false;
+          return;
         }
       }
 
 
       void onAdjustBrightness()
       {
-        char textbox[20];
-        snprintf( textbox, 19, "%s %d%s", BackLight::label, BackLight::brightness, "%" );
-        CSS::drawStyledString( &tft, textbox, 160, h - 6, &ULFontStyle );
+        setMenuDelay( 300 );
 
-        menu_delay = 25;
-
-        if(btnA == 1) {
+        if(btnA) {
+          setMenuDelay( 25 );
           BackLight::decrease();
         }
-        if(btnC == 1) {
+        if(btnC) {
+          setMenuDelay( 25 );
           BackLight::increase();
         }
 
-        if(btnB == 1) {
-          if(BackLight::brightnessOld != BackLight::brightness) {
-            BackLight::brightnessOld = BackLight::brightness;
-            BackLight::save();
-          }
-          onExitSettingsMenu();
+        if(btnB) {
+          BackLight::save();
+          setting_selected = false;
         }
+
+        char textbox[20];
+        snprintf( textbox, 19, "%s %d%s", BackLight::label, BackLight::brightness, "%" );
+        CSS::drawStyledString( &tft, textbox, hmiddle, titleYpos, &ULFontStyle );
       }
 
 
       void onChangeTransverterMode()
       {
-
-        menu_delay = 300;
+        setMenuDelay( 300 );
         int8_t value = Transverter::get();
-
-        if(value == 0) {
-          CSS::drawStyledString( &tft, "OFF", 160, h - 6, &ULFontStyle );
-        } else {
-          char transverter_value_str[17];
-          format_number( Transverter::choices[value], 16, transverter_value_str, '.' );
-          CSS::drawStyledString( &tft, transverter_value_str, 160, h - 6, &ULFontStyle );
-        }
 
         size_t lastIndex = ( sizeof(Transverter::choices) / sizeof(Transverter::choices[0]) ) - 1;
 
         if(btnA || btnC) {
-          if(btnA == 1) {
+          if(btnA) {
             value--;
             Transverter::set( (value < 0) ? lastIndex : value);
-          } else if(btnC == 1) {
+          }
+          if(btnC) {
             value++;
             Transverter::set( (value > lastIndex) ? 0 : value );
           }
-        } else if(btnB == 1) {
+          value = Transverter::get();
+        }
+
+        if(btnB) {
           Transverter::save();
-          onExitSettingsMenu();
+          setting_selected = false;
+        }
+
+        if(value == 0) {
+          CSS::drawStyledString( &tft, "OFF", hmiddle, titleYpos, &ULFontStyle );
+        } else {
+          char transverter_value_str[17];
+          format_number( Transverter::choices[value], 16, transverter_value_str, '.' );
+          CSS::drawStyledString( &tft, transverter_value_str, hmiddle, titleYpos, &ULFontStyle );
         }
       }
 
 
       void onAdjustBeepVolume()
       {
-        menu_delay = 25;
+        setMenuDelay( 300 );
+
+        if(btnA || btnC) {
+          setMenuDelay( 25 );
+          if(btnA) {
+            Beeper::decrease();
+          }
+          if(btnC) {
+            Beeper::increase();
+          }
+        }
+        if(btnB) {
+          Beeper::save();
+          setting_selected = false;
+        }
 
         char textbox[20];
         snprintf( textbox, 19, "%s %d%s", Beeper::label, Beeper::beepVolume, "%" );
-        CSS::drawStyledString( &tft, textbox, 160, h - 6, &ULFontStyle );
-
-        if(btnA || btnC) {
-          if(btnA == 1) {
-            Beeper::decrease();
-          } else if(btnC == 1) {
-            Beeper::increase();
-          }
-        } else if(btnB == 1) {
-          Beeper::save();
-          onExitSettingsMenu();
-        }
+        CSS::drawStyledString( &tft, textbox, hmiddle, titleYpos, &ULFontStyle );
       }
 
 
       void onSetScreensaverDelay()
       {
-        menu_delay = 75;
+        setMenuDelay( 300 );
+
+        if(btnA || btnC) {
+          setMenuDelay( 75 );
+          if(btnA) {
+            ScreenSaver::decrease();
+          }
+          if(btnC) {
+            ScreenSaver::increase();
+          }
+        }
+
+        if(btnB) {
+          ScreenSaver::save();
+          setting_selected = false;
+        }
 
         char textbox[20];
         snprintf( textbox, 19, "%s %d%s", ScreenSaver::label, ScreenSaver::countdown, " MIN" );
-        CSS::drawStyledString( &tft, textbox, 160, h - 6, &ULFontStyle );
-
-        if(btnA || btnC) {
-          if(btnA == 1) {
-            ScreenSaver::decrease();
-          } else if(btnC == 1) {
-            ScreenSaver::increase();
-          }
-        } else if(btnB == 1) {
-          ScreenSaver::save();
-          onExitSettingsMenu();
-        }
+        CSS::drawStyledString( &tft, textbox, hmiddle, titleYpos, &ULFontStyle );
       }
 
 
       void onShowIPAddress()
       {
-        menu_delay = 300;
+        setMenuDelay( 300 );
 
-        CSS::drawStyledString( &tft, WiFi.localIP().toString().c_str(), 160, h - 6, &ULFontStyle );
+        CSS::drawStyledString( &tft, WiFi.localIP().toString().c_str(), hmiddle, titleYpos, &ULFontStyle );
 
-        if(btnB == 1) {
-          onExitSettingsMenu();
+        if(btnB) {
+          setting_selected = false;
+          return;
         }
       }
 
 
       void onShowMacAddress()
       {
-        menu_delay = 300;
+        setMenuDelay( 300 );
 
-        CSS::drawStyledString( &tft, WiFi.macAddress().c_str(), 160, h - 6, &ULFontStyle );
+        CSS::drawStyledString( &tft, WiFi.macAddress().c_str(), hmiddle, titleYpos, &ULFontStyle );
 
-        if(btnB == 1) {
-          onExitSettingsMenu();
+        if(btnB) {
+          setting_selected = false;
+          return;
+        }
+      }
+
+
+      void drawMenu(/*uint8_t x, uint8_t y, uint16_t w, uint8_t h*/)
+      {
+        tft.fillRoundRect( x, y, w, h, 8, SettingsMenuBgColor );
+        tft.drawRoundRect( x, y, w, h, 8, SettingsMenuBorderColor );
+
+        CSS::drawStyledString( &tft, SETTINGS_LABEL, hmiddle, 14 + y, &H1FontStyle );
+        CSS::drawStyledString( &tft, APP_TITLE,      hmiddle, 28 + y, &H2FontStyle );
+
+        //tft.drawFastHLine(120, 3, 80, Theme::layout->bgcolor);
+        tft.drawFastHLine( x + 1, rulerTitleYpos, w-2, SettingsMenuLightColor ); // <hr> between title and settings list
+        tft.drawFastHLine( x + 1, rulerValueYpos, w-2, SettingsMenuLightColor ); // <hr> between settings list and setting value
+
+      //const uint32_t rulerTitleYpos = 36 + y;
+      //const uint32_t rulerValueYpos = (y + h) - 24;
+
+      }
+
+
+      void drawOptions()
+      {
+        uint8_t firstIndex = 0;
+        //uint8_t i, j;
+
+        // pagination
+        if(choice > MAX_ITEMS_IN_SETTINGS_MENU-1) {
+          firstIndex = choice - (MAX_ITEMS_IN_SETTINGS_MENU-1);
+        } else {
+          firstIndex = 0;
+        }
+
+        size_t lastIndex = firstIndex + MAX_ITEMS_IN_SETTINGS_MENU;
+        //j = 0;
+
+        CSS::setFontStyle( &tft, &LIFontStyle );
+        uint32_t itemHeight  = (tft.fontHeight()+2);
+        uint32_t itemsYStart = rulerTitleYpos + itemHeight/2;
+
+        for(uint8_t j=0, i=firstIndex; i<lastIndex; i++) {
+          uint32_t yPos = ( itemsYStart + (j * itemHeight) ) - itemHeight/2;
+          if(choice == i ) {
+            if( setting_selected ) {
+              tft.setTextColor( SettingsMenuDarkColor, SettingsMenuLightColor );
+            } else {
+              tft.setTextColor( SettingsMenuBgColor, SettingsMenuLightColor );
+            }
+          } else {
+            tft.setTextColor( setting_selected ? SettingsMenuDimmedColor : SettingsMenuLightColor, SettingsMenuBgColor);
+          }
+          CSS::drawStyledString( &tft, menuchoices[i].label, hmiddle, itemsYStart + (j * itemHeight), nullptr );
+          if( i!=firstIndex ) {
+            tft.drawFastHLine( x+1, yPos, w-2, (choice == i ) ? SettingsMenuLightColor : SettingsMenuBgColor); // padding-top: 1px for the font
+          }
+          j++;
+          if(j > MAX_ITEMS_IN_SETTINGS_MENU) j = MAX_ITEMS_IN_SETTINGS_MENU;
         }
       }
 

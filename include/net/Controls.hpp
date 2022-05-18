@@ -40,7 +40,6 @@ namespace ICSMeter
 
     namespace screenshot
     {
-      bool capture = false;
       bool M5Screen24bmp(); // Get screenshot
       void check(); // manage screenshot
     };

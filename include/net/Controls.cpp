@@ -114,20 +114,18 @@ namespace ICSMeter
     }
 
 
-
-    bool connected() // Manage connexion error
+    const char* proxyStatus()
     {
       HTTPClient http;
 
-
-      const char *message = nullptr;
       String command = "";
       String response = "";
+      const char *message = nullptr;
 
       const char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x03, 0xFD};
       char s[4];
 
-      Settings::lock = false;
+      //Settings::lock = false;
 
       for (uint8_t i = 0; i < 6; i++) {
         sprintf(s, "%02x,", request[i]);
@@ -136,70 +134,72 @@ namespace ICSMeter
 
       command += BAUDE_RATE + String(",") + SERIAL_DEVICE;
 
-      if (screenshot::capture == false) {
-        if (IC_MODEL == 705 && IC_CONNECT == BT && bluetooth::connected == false) {
-          message = MSG_NEEDPAIRING;
-        } else if (IC_CONNECT == USB && wifi::connected == false) {
-          message = MSG_CHECKWIFI;
-        } else if (IC_CONNECT == USB && (proxyConnected == false || txConnected == false)) {
-          http.begin(civClient, PROXY_URL + String(":") + PROXY_PORT + String("/") + String("?civ=") + command); // Specify the URL
-          http.addHeader("User-Agent", "M5Stack");                                                               // Specify header
-          http.addHeader("Connection", "keep-alive");                                                            // Specify header
-          http.setTimeout(100);                                                                                  // Set Time Out
-          uint16_t httpCode = http.GET();                                                                                 // Make the request
-          if (httpCode == 200) {
-            proxyConnected = true;
+      http.begin(civClient, PROXY_URL + String(":") + PROXY_PORT + String("/") + String("?civ=") + command); // Specify the URL
+      http.addHeader("User-Agent", "M5Stack");                                                               // Specify header
+      http.addHeader("Connection", "keep-alive");                                                            // Specify header
+      http.setTimeout(100);                                                                                  // Set Time Out
+      uint16_t httpCode = http.GET();                                                                                 // Make the request
+      if (httpCode == 200) {
+        proxyConnected = true;
 
-            response = http.getString(); // Get data
-            response.trim();
+        response = http.getString(); // Get data
+        response.trim();
 
-            if (response != "") {
-              Serial.println( MSG_TX_UP );
-              txConnected = true;
-              //message = nullptr;
-            } else {
-              Serial.println( MSG_TX_DOWN );
-              txConnected = false;
-              message = MSG_CHECKTX;
-            }
-          } else {
-            message = MSG_CHECKPROXY;
-          }
-          http.end();
+        if (response != "") {
+          Serial.println( MSG_TX_UP );
+          txConnected = true;
+          //message = nullptr;
+        } else {
+          Serial.println( MSG_TX_DOWN );
+          txConnected = false;
+          message = MSG_CHECKTX;
         }
+      } else {
+        message = MSG_CHECKPROXY;
+      }
+      http.end();
 
-        // Shutdown screen if no TX connexion
-        if (wakeup == true && startup == false) {
-          if ((IC_CONNECT == BT && bluetooth::connected == false) || (IC_CONNECT == USB && txConnected == false)) {
-            tft.sleep();
-            wakeup = false;
-          }
-        } else if (wakeup == false && startup == false) {
-          if ((IC_CONNECT == BT && bluetooth::connected == true) || (IC_CONNECT == USB && txConnected == true)) {
-            clearData();
-            tft.wakeup();
-            UI::draw();
-            wakeup = true;
-            ScreenSaver::reset();
-          }
+      return message;
+    }
+
+
+
+    bool connected() // Manage connexion error
+    {
+      const char *message = nullptr;
+
+      if (IC_MODEL == 705 && IC_CONNECT == BT && bluetooth::connected == false) {
+        message = MSG_NEEDPAIRING;
+      } else if (IC_CONNECT == USB && wifi::connected == false) {
+        message = MSG_CHECKWIFI;
+      } else if (IC_CONNECT == USB && (proxyConnected == false || txConnected == false)) {
+        message = proxyStatus();
+      }
+
+      // Shutdown screen if no TX connexion
+      if (wakeup == true && startup == false) {
+        if ((IC_CONNECT == BT && bluetooth::connected == false) || (IC_CONNECT == USB && txConnected == false)) {
+          tft.sleep();
+          wakeup = false;
         }
-
-        if ( message ) {
-          Settings::lock = true;
-
-          if ( UI::canDrawUI() ) {
-            CSS::drawStyledString( &tft, message, 160, 180, Theme::H3FontStyle );
-            vTaskDelay(750);
-            CSS::drawStyledString( &tft, "",      160, 180, Theme::H3FontStyle );
-            vTaskDelay(250);
-            Settings::lock = false;
-            return false;
-          } else {
-            Settings::lock = false;
-            vTaskDelay(1000);
-            return false;
-          }
+      } else if (wakeup == false && startup == false) {
+        if ((IC_CONNECT == BT && bluetooth::connected == true) || (IC_CONNECT == USB && txConnected == true)) {
+          clearData();
+          tft.wakeup();
+          UI::draw();
+          wakeup = true;
+          ScreenSaver::reset();
         }
+      }
+
+      if ( message && UI::canDrawUI() ) {
+        static bool active_state = false;
+        bool state = (millis()/773)%2==0;
+        if( active_state != state ) {
+          CSS::drawStyledString( &tft, state ? message : "", 160, 180, Theme::H3FontStyle );
+          active_state = state;
+        }
+        return false;
       }
       return true;
     }
@@ -455,7 +455,7 @@ namespace ICSMeter
       double freq; // Current frequency in Hz
       const uint32_t decMulti[] = {1000000000, 100000000, 10000000, 1000000, 100000, 10000, 1000, 100, 10, 1};
 
-      uint8_t lenght = 0;
+      //uint8_t lenght = 0;
 
       size_t n = sizeof(request) / sizeof(request[0]);
 
@@ -592,7 +592,6 @@ namespace ICSMeter
               }
               // If there's bytes to read from the client,
               if (webClient.available()) {
-                capture = true;
                 char c = webClient.read();
                 Serial.write(c);
                 // If the byte is a newline character
@@ -620,9 +619,10 @@ namespace ICSMeter
                           webClient.println("HTTP/1.1 200 OK");
                           webClient.println("Content-type:image/bmp");
                           webClient.println();
+                          takeLcdMux(); // wait for UI to finish drawing
                           M5Screen24bmp();
+                          giveLcdMux(); // resume normal UI operations
                           vTaskDelay(1000);
-                          capture = false;
                           break;
                         }
                       default:

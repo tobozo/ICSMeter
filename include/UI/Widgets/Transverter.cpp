@@ -1,5 +1,5 @@
 
-
+#include "../Widgets.hpp"
 
 namespace ICSMeter
 {
@@ -33,9 +33,10 @@ namespace ICSMeter
 
       void save()
       {
-        if( value != valueOld ) {
+        int8_t tmp = getPref("transverter", 0);
+        if( value != tmp ) {
           setPref("transverter", Transverter::value);
-          valueOld = value;
+          valueOld = tmp;
         }
       }
 
@@ -54,7 +55,7 @@ namespace ICSMeter
 
       void draw( bool force_redraw )
       {
-        if (ScreenSaver::mode || Settings::mode ) return;
+        if (ScreenSaver::enabled || Settings::dialog_enabled ) return;
         if ( force_redraw || value > 0) {
           char label[16];
           snprintf(label, 15, "LO%d", value);
