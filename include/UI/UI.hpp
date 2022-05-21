@@ -12,7 +12,7 @@ namespace ICSMeter
     void drawMiddle();
     void drawBottom();
     void drawWidgets( bool force_redraw = false );
-    bool canDrawUI();
+    bool canDraw();
   };
 
 };

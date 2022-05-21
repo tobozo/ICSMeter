@@ -39,7 +39,7 @@ namespace ICSMeter
         int8_t rawLevel = getLevel(1);
         bool batteryCharging;
 
-        if(ScreenSaver::enabled || Settings::dialog_enabled ) return;
+        if(ScreenSaver::isEnabled() || Settings::dialog_enabled ) return;
 
         // On left, view battery level
         uint8_t batteryLevel = map(rawLevel, battery_min_level, battery_max_level, 0, 16);

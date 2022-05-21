@@ -50,13 +50,6 @@ namespace ICSMeter
     UI::setup();
     UI::drawWidgets( true );
 
-    #if defined DEMO_MODE
-      DataMode::setFilter( "FIL1" );
-      DataMode::setMode( "USB" );
-      Measure::setPrimaryValue( "S 9.06 db");
-      Measure::setSecondaryValue( "14.235.000" );
-    #endif
-
     xTaskCreatePinnedToCore( daemon::netTask, "netTask", 8192, NULL, 16, NULL, 0);
 
   }
@@ -64,47 +57,45 @@ namespace ICSMeter
 
   void loop() // Main Loop
   {
-    checkButtons(); // check buttons status
+    buttons::loop();   // handle buttons
+    if( buttons::hasBubble() ) {
+      ScreenSaver::resetTimer();
+    }
+
+    Beeper::loop();    // handle beep
 
     takeLcdMux(); // this will wait for current screen capture to finish
                   // and prevent further screen capture to be performed while drawing
                   // until giveLcdMux() is called
 
-    ScreenSaver::handle(); // check if Screen Saver needs enabling
-    if( ScreenSaver::enabled ) {
-      giveLcdMux();
-      return;
-    }
+    ScreenSaver::loop(); // check if Screen Saver needs enabling
+    if( ScreenSaver::isEnabled() ) goto _giveMux;
 
-    Settings::handle();
-    if( Settings::dialog_enabled ) {
-      giveLcdMux();
-      return;
-    }
+    Settings::loop();
+    if( Settings::dialog_enabled ) goto _giveMux;
 
     #if defined DEMO_MODE
       /********** Needle DEMO MODE BEGIN ******/
+      DataMode::setFilter( "FIL1" );
+      DataMode::setMode( "USB" );
+      Measure::setPrimaryValue( "S 9.06 db");
+      Measure::setSecondaryValue( "14.235.000" );
+
       static float random_angle = 0.0;
       Needle::ICSGauge->easeNeedle( 300 ); // 300ms easing
       if( (millis()/1259)%2== 0 ) {
-        random_angle = ( (rand()%9000) / 100.0 );
+        random_angle = ( (rand()%9000) / 100.0 ); // [0...90] with 2 digits decimal precision
         Needle::ICSGauge->setNeedle( random_angle );
         UI::drawWidgets();
       }
       /********** Needle DEMO MODE END ******/
-      giveLcdMux();
-      return;
+       goto _giveMux;
     #endif
 
+    daemon::loop();
 
-    if(daemon::connected()) {
-      uint8_t tx = CIV::getTX(); // check connection health, retrieve last status
-      if(tx != 0) ScreenSaver::reset(); // If transmit, refresh tempo
-      daemon::ICScan();
-      FastLed::set( tx );
-      UI::drawWidgets();
-    }
 
+    _giveMux:
     giveLcdMux();
 
   }
@@ -112,18 +103,14 @@ namespace ICSMeter
 
   void checkButtons()
   {
-    using namespace modules::buttons;
 
-    buttons::check();
-
-    if( btnA || btnB || btnC ) ScreenSaver::reset();
-
-    // immediately cancel bubble for UI button presses
-    if( buttonLeftPressed || buttonCenterPressed || buttonRightPressed ) buttonLeftPressed = buttonCenterPressed = buttonRightPressed = false;
-
-    Beeper::handle();    // handle beep
   }
 
+
+  void shutdown()
+  {
+    M5.Power.powerOff();
+  }
 
 
   void takeLcdMux()

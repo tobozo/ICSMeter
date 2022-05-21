@@ -16,14 +16,17 @@ namespace ICSMeter
     }
 
 
-    bool canDrawUI()
+    bool canDraw()
     {
-       return (ScreenSaver::enabled == false && Settings::dialog_enabled == false);
+       return (ScreenSaver::isEnabled() == false && Settings::dialog_enabled == false);
     }
 
 
     void drawWidgets( bool force_redraw )
     {
+      if( force_redraw ) {
+        log_d("Forced redraw");
+      }
       if( force_redraw ) drawTop();
 
       Battery::draw( force_redraw );
@@ -43,6 +46,10 @@ namespace ICSMeter
       }
       if( force_redraw || Measure::needs_redraw() ) {
         Measure::drawValues( force_redraw );
+      }
+
+      if( force_redraw && Settings::dialog_enabled ) {
+        Settings::draw();
       }
     }
 

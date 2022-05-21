@@ -12,7 +12,7 @@ namespace ICSMeter
     {
 
       using namespace Utils;
-      using namespace modules::buttons;
+      using namespace modules;
       using namespace Theme;
 
       uint32_t menu_delay = 150; // variable typematic button rate
@@ -73,7 +73,7 @@ namespace ICSMeter
         { "IP Address",       onShowIPAddress         },
         { "Mac Address",      onShowMacAddress        },
         { "Shutdown",         onShutdown              },
-        { "Exit Settings",    onExit                  },
+        { "Exit",             onExit                  },
       };
 
 
@@ -87,19 +87,21 @@ namespace ICSMeter
       }
 
 
-      void handle() // called repeatedly from a task loop
+      void loop() // called repeatedly from a task loop
       {
+        if( ScreenSaver::isEnabled() || ScreenSaver::isAsleep() ) return;
+
         if( !dialog_enabled ) {
-          if( btnB ) { // entering settings menu
+          if( buttons::btnB ) { // entering settings menu
             dialog_enabled   = true;
             setting_selected = false;
             choice = 0;
-            draw();
+            Settings::draw();
           }
           return;
         }
 
-        if( btnA || btnB || btnC ) {
+        if( buttons::hasBubble() ) {
           if( setting_selected ) { // editing a setting
             handleSettings();
           } else {
@@ -125,26 +127,30 @@ namespace ICSMeter
         if( menuchoices[choice].callback ) {
           CSS::setFontStyle( &tft, &ULFontStyle );
           menuchoices[choice].callback();
-          drawOptions();
-          if( dialog_enabled ) vTaskDelay( menu_delay );
+          if( dialog_enabled ) {
+            drawOptions();
+            vTaskDelay( menu_delay );
+          }
         }
       }
 
 
       void exitSettingsMenu()
       {
-        setMenuDelay( 300 );
-        setting_selected = false;
-        dialog_enabled   = false;
-        UI::drawWidgets( true );
-        log_d("Leaving settings menu");
+        if( dialog_enabled ) {
+          setMenuDelay( 300 );
+          setting_selected = false;
+          log_d("Leaving settings menu");
+          dialog_enabled   = false;
+          UI::drawWidgets( true );
+        }
       }
 
       void onShutdown()
       {
         CSS::drawStyledString( &tft, "", hmiddle, titleYpos, &ULFontStyle );
-        if(btnB) {
-          ScreenSaver::shutdown();
+        if(buttons::btnB) {
+          shutdown();
         }
       }
 
@@ -152,8 +158,8 @@ namespace ICSMeter
       void onExit()
       {
         CSS::drawStyledString( &tft, "", hmiddle, titleYpos, &ULFontStyle );
-        if(btnB) {
-          dialog_enabled = false;
+        if(buttons::btnB) {
+          exitSettingsMenu();
         }
       }
 
@@ -162,8 +168,7 @@ namespace ICSMeter
       {
         setMenuDelay( 300 );
 
-        if(btnB) {
-          setting_selected = !setting_selected;
+        if(buttons::btnB) {
           if( strcmp( menuchoices[choice].label, "Shutdown" ) == 0 ) {
             onShutdown();
             return;
@@ -171,24 +176,25 @@ namespace ICSMeter
             onExit();
             return;
           }
-          btnB = false; // cancel bubble
+          setting_selected = !setting_selected;
+          buttons::cancelBubble();
           handleSettings();
           return;
         }
 
-        if(btnA || btnC) {
-          // settings items pagination
+        if(buttons::btnA || buttons::btnC) { // paginating in settings categories
+
           size_t lastIndex = (sizeof(menuchoices) / sizeof(settings_handler_t)) - 1;
 
-          if(btnA) {
+          if(buttons::btnA) {
             choice--;
             choice = (choice < 0) ? lastIndex : choice;
-          } else if(btnC) {
+          } else if(buttons::btnC) {
             choice++;
             choice = (choice > lastIndex) ? 0 : choice;
           }
 
-          btnA = btnB = btnC = false; // cancel bubble
+          buttons::cancelBubble();
           handleSettings();
           return;
         }
@@ -198,12 +204,12 @@ namespace ICSMeter
       void onChangeMeasuredValues()
       {
         setMenuDelay( 300 );
-        if(btnA || btnC) {
-          if(btnA) {
+        if(buttons::btnA || buttons::btnC) {
+          if(buttons::btnA) {
             Measure::value -= 1;
             if(Measure::value < 0) Measure::value = 2;
           }
-          if(btnC) {
+          if(buttons::btnC) {
             Measure::value += 1;
             if(Measure::value > 2) Measure::value = 0;
           }
@@ -212,9 +218,9 @@ namespace ICSMeter
 
         CSS::drawStyledString( &tft, Measure::choices[Measure::value], hmiddle, titleYpos, &ULFontStyle );
 
-        if(btnB) {
+        if(buttons::btnB) {
           Measure::save();
-          setting_selected = false;
+          exitSettingsMenu();
           return;
         }
       }
@@ -223,11 +229,11 @@ namespace ICSMeter
       void onSwitchTheme()
       {
         setMenuDelay( 300 );
-        if(btnA || btnC) {
-          if(btnA) {
+        if(buttons::btnA || buttons::btnC) {
+          if(buttons::btnA) {
             Theme::theme = (Theme::theme+1)%Theme::THEMES_COUNT;
           }
-          if(btnC) {
+          if(buttons::btnC) {
             Theme::theme = (Theme::theme+Theme::THEMES_COUNT-1)%Theme::THEMES_COUNT;
           }
           Theme::set();
@@ -238,9 +244,9 @@ namespace ICSMeter
 
         CSS::drawStyledString( &tft, Theme::choices[Theme::theme], hmiddle, titleYpos, &ULFontStyle );
 
-        if(btnB) {
+        if(buttons::btnB) {
           Theme::save();
-          setting_selected = false;
+          exitSettingsMenu();
           return;
         }
       }
@@ -252,18 +258,18 @@ namespace ICSMeter
 
         setMenuDelay( 300 );
 
-        if(btnA) {
+        if(buttons::btnA) {
           setMenuDelay( 25 );
           BackLight::decrease();
         }
-        if(btnC) {
+        if(buttons::btnC) {
           setMenuDelay( 25 );
           BackLight::increase();
         }
 
-        if(btnB) {
+        if(buttons::btnB) {
           BackLight::save();
-          setting_selected = false;
+          exitSettingsMenu();
         }
 
         char textbox[20];
@@ -279,21 +285,21 @@ namespace ICSMeter
 
         size_t lastIndex = ( sizeof(Transverter::choices) / sizeof(Transverter::choices[0]) ) - 1;
 
-        if(btnA || btnC) {
-          if(btnA) {
+        if(buttons::btnA || buttons::btnC) {
+          if(buttons::btnA) {
             value--;
             Transverter::set( (value < 0) ? lastIndex : value);
           }
-          if(btnC) {
+          if(buttons::btnC) {
             value++;
             Transverter::set( (value > lastIndex) ? 0 : value );
           }
           value = Transverter::get();
         }
 
-        if(btnB) {
+        if(buttons::btnB) {
           Transverter::save();
-          setting_selected = false;
+          exitSettingsMenu();
         }
 
         if(value == 0) {
@@ -312,18 +318,18 @@ namespace ICSMeter
 
         setMenuDelay( 300 );
 
-        if(btnA || btnC) {
+        if(buttons::btnA || buttons::btnC) {
           setMenuDelay( 25 );
-          if(btnA) {
+          if(buttons::btnA) {
             Beeper::decrease();
           }
-          if(btnC) {
+          if(buttons::btnC) {
             Beeper::increase();
           }
         }
-        if(btnB) {
+        if(buttons::btnB) {
           Beeper::save();
-          setting_selected = false;
+          exitSettingsMenu();
         }
 
         char textbox[20];
@@ -336,23 +342,23 @@ namespace ICSMeter
       {
         setMenuDelay( 300 );
 
-        if(btnA || btnC) {
+        if(buttons::btnA || buttons::btnC) {
           setMenuDelay( 75 );
-          if(btnA) {
+          if(buttons::btnA) {
             ScreenSaver::decrease();
           }
-          if(btnC) {
+          if(buttons::btnC) {
             ScreenSaver::increase();
           }
         }
 
-        if(btnB) {
+        if(buttons::btnB) {
           ScreenSaver::save();
-          setting_selected = false;
+          exitSettingsMenu();
         }
 
         char textbox[20];
-        snprintf( textbox, 19, "%s %d%s", ScreenSaver::label, ScreenSaver::countdown, " MIN" );
+        snprintf( textbox, 19, "%s %d%s", ScreenSaver::label, ScreenSaver::getDelay(), " MIN" );
         CSS::drawStyledString( &tft, textbox, hmiddle, titleYpos, &ULFontStyle );
       }
 
@@ -363,8 +369,8 @@ namespace ICSMeter
 
         CSS::drawStyledString( &tft, WiFi.localIP().toString().c_str(), hmiddle, titleYpos, &ULFontStyle );
 
-        if(btnB) {
-          setting_selected = false;
+        if(buttons::btnB) {
+          exitSettingsMenu();
           return;
         }
       }
@@ -376,8 +382,8 @@ namespace ICSMeter
 
         CSS::drawStyledString( &tft, WiFi.macAddress().c_str(), hmiddle, titleYpos, &ULFontStyle );
 
-        if(btnB) {
-          setting_selected = false;
+        if(buttons::btnB) {
+          exitSettingsMenu();
           return;
         }
       }

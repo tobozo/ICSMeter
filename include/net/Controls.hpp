@@ -15,6 +15,7 @@ namespace ICSMeter
     namespace daemon
     {
       void setup();
+      void loop();
       void netTask(void *pvParameters);
       void check();
       void ICScan();
@@ -24,8 +25,6 @@ namespace ICSMeter
       bool needsPairing();
       bool needsWiFiChecked();
       bool needsProxyChecked();
-      bool canSleep();
-      bool canWakeup();
 
       bool dispatchCommand(char *request, size_t n, char *buffer, uint8_t limit); // Send CI-V Command dispatcher
 

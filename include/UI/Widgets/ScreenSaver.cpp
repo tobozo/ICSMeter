@@ -1,4 +1,20 @@
 
+
+/*
+
+
+  - Screen saver is triggered by a timer
+  - Screen saving consists in:
+    - temporarily reducing brightness (see brightness_dim)
+    - animating a logo **unless tft sleep mode is enabled**
+  - Screen saving can be interrupted by:
+    - resetting the timer with ScreenSaver::resetTimer()
+    - button press
+    - incoming message from IC
+    - proxy status change
+
+*/
+
 namespace ICSMeter
 {
 
@@ -8,24 +24,31 @@ namespace ICSMeter
     namespace ScreenSaver
     {
       using namespace modules;
+      using namespace net;
 
       uint32_t timer;
-      uint32_t countdown;
+      uint32_t minutes_countdown;  // minutes, loaded from preferences / editable via settings panel
+      uint32_t milliseconds_countdown;       // milliseconds translated from minutes_countdown
       uint32_t countdownOld;
       const uint32_t min_countdown = 1;
       const uint32_t max_countdown = 60;
 
-      uint16_t x = rand() % 232;
-      uint16_t y = rand() % 196;
+      const uint16_t logo_width  = 44;
+      const uint16_t logo_height = 22;
+      const uint16_t min_x = logo_width;
+      const uint16_t max_x = 320-logo_width;
+      const uint16_t min_y = logo_height;
+      const uint16_t max_y = 240-logo_height;
+
+      uint16_t x = rand() % max_x;
+      uint16_t y = rand() % max_y;
       bool xDir = rand() & 1;
       bool yDir = rand() & 1;
 
-      const uint16_t logo_width  = 44;
-      const uint16_t logo_height = 22;
-      const uint16_t min_x = 44;
-      const uint16_t max_x = 232;
-      const uint16_t min_y = 22;
-      const uint16_t max_y = 196;
+
+      bool tft_sleep_mode_enabled   = false;
+      bool tft_screen_saver_enabled = false;
+
 
       const float brightness_dim = 0.5; // percentage of current brightness
       uint8_t old_brightness = 0x40;
@@ -35,93 +58,125 @@ namespace ICSMeter
 
       void setup()
       {
-        countdown = prefs::get("screensaver", 60);
+        uint32_t minutes = prefs::get("screensaver", 60);
+        ScreenSaver::setTimer( minutes );
+        ScreenSaver::resetTimer();
       }
 
 
-      void save()
+      void loop()
       {
-        uint32_t tmp = prefs::get("screensaver", 60);
-        if( tmp != countdown ) {
-          countdownOld = tmp;
-          prefs::set("screensaver", countdown);
+        if( ScreenSaver::shouldSleep() ) { // IC or timer signal
+          ScreenSaver::sleep();
+          return;
         }
-      }
+        if( ( ScreenSaver::isAsleep() || ScreenSaver::isEnabled() ) && ScreenSaver::shouldWakeup()) { // proxy or buttons
+          ScreenSaver::wakeup();
+          return;
+        }
 
-
-      void shutdown()
-      {
-        M5.Power.powerOff();
-      }
-
-
-      void reset()
-      {
-         timer   = millis();
-         enabled = false;
-      }
-
-
-      void increase()
-      {
-        countdown++;
-        countdown = min( max_countdown, countdown );
-      }
-
-
-      void decrease()
-      {
-        countdown--;
-        countdown = max( min_countdown, countdown );
-      }
-
-
-      void sleep()
-      {
-        Settings::dialog_enabled = false;
-        old_brightness = BackLight::getBrightness();
-        BackLight::setBrightness( old_brightness * brightness_dim );
-        enabled = true;
-        wakeup = false;
-        timer = 0;
-        tft.fillScreen(TFT_BLACK);
-      }
-
-      void wake()
-      {
-        tft.fillScreen(TFT_BLACK);
-        //clearData();
-        BackLight::setBrightness( old_brightness );
-        UI::drawWidgets( true );
-        enabled = false;
-        wakeup  = true;
-        //reset();
-        //Settings::dialog_enabled = false;
-        vTaskDelay(100);
-      }
-
-
-      void handle()
-      {
-        if( !enabled ) {
-          if( millis() - timer > countdown * 60 * 1000 ) { // time to save screen, prepare display and clear !
-            ScreenSaver::sleep();
+        if( ScreenSaver::isDisabled() && ScreenSaver::isAwake() ) { // timer signal
+          if( millis() - timer > milliseconds_countdown ) { // enable screensaver animation
+            ScreenSaver::enable();
           }
           return;
         }
 
-        if( wakeup ) { // wakeup
-          ScreenSaver::wake();
+        if( timer != 0 ) { // wakeup/disable signal
+          ScreenSaver::disable();
           return;
         }
+
+        if( ScreenSaver::isAsleep() || ScreenSaver::isDisabled() ) return;
 
         ScreenSaver::draw();
         vTaskDelay(75);
       }
 
 
+      // some closed answer verbs
+
+      bool isEnabled()  { return   tft_screen_saver_enabled; }
+      bool isDisabled() { return ! tft_screen_saver_enabled; }
+      bool isAsleep()   { return   tft_sleep_mode_enabled;   }
+      bool isAwake()    { return ! tft_sleep_mode_enabled;   }
+
+      bool shouldSleep() // sleep signal comes either from IC being turned off (depends on proxy) or by timer
+      {
+        if( ScreenSaver::isAsleep() ) return false; // already sleeping
+        if( ScreenSaver::isAwake() && proxy::available() // tft must be awake to go to sleep
+            && ( ( IC_CONNECT == BT && !bluetooth::available()) || ( IC_CONNECT == USB && !proxy::connected() ) ) ) return true;
+        uint32_t elapsed = millis() - timer; // elapsed time since last timer reset
+        return elapsed > milliseconds_countdown*2;
+      }
+
+      bool shouldWakeup() // wakeup signal comes from proxy, buttons, or timer
+      {
+        //bool buttons_pushed = ( buttons::btnA || buttons::btnB || buttons::btnC );
+        if( ScreenSaver::isAwake() && ScreenSaver::isDisabled() ) return false; // already awake and not saving screen
+        if( ScreenSaver::isAwake() && ScreenSaver::isEnabled() ) return buttons::hasBubble(); // already awake and saving screen
+        if( ScreenSaver::isAsleep() && buttons::hasBubble() ) return true; // sleeping and waiting for button push
+        if( ScreenSaver::isAsleep() || ScreenSaver::isEnabled() ) return timer != 0; // timer has been reset
+        if( ScreenSaver::isAsleep() && proxy::available() ) { // sleeping and waiting for proxy coming online
+          return ( ( IC_CONNECT == BT && bluetooth::available() ) || ( IC_CONNECT == USB && !proxy::connected() ) ); // BT became avail or proxy disconnected
+        }
+        return false; // nothing-happenness
+      }
+
+
+      void enable()
+      {
+        log_d("Enabling screen saver");
+        old_brightness = BackLight::getBrightness();
+        BackLight::setBrightness( old_brightness * brightness_dim );
+        tft_screen_saver_enabled = true;
+        timer = 0;
+        tft.fillScreen(TFT_BLACK);
+      }
+
+      void disable()
+      {
+        log_d("Disabling screen saver");
+        tft_screen_saver_enabled = false;
+        buttons::cancelBubble();
+        ScreenSaver::resetTimer();
+        if( ScreenSaver::isAsleep() ) {
+          ScreenSaver::wakeup();
+        }
+        BackLight::setBrightness( old_brightness );
+        UI::drawWidgets( true );
+      }
+
+
+      void sleep()
+      {
+        log_d("Entering TFT sleep mode");
+        tft_sleep_mode_enabled = true;
+        tft.sleep();
+      }
+
+
+      void wakeup()
+      {
+        log_d("Leaving TFT sleep mode");
+        bool force_disable = false;
+        buttons::cancelBubble();
+        ScreenSaver::resetTimer();
+        if( ScreenSaver::isAsleep() ) {
+          tft_sleep_mode_enabled = false;
+          tft.wakeup();
+          force_disable = true;
+        }
+        if( force_disable || ScreenSaver::isEnabled() ) {
+          ScreenSaver::disable();
+        }
+      }
+
+
       void draw()
       {
+        if( ScreenSaver::isAsleep() || ScreenSaver::isDisabled() ) return;
+
         x += (xDir) ? 1 : -1;
         y += (yDir) ? 1 : -1;
 
@@ -135,6 +190,63 @@ namespace ICSMeter
         tft.drawRect( x-1, y-1, logo_width+2, logo_height+2, TFT_BLACK );
       }
 
+
+      // getters / setters
+
+      void setTimer( uint32_t minutes )
+      {
+        minutes_countdown = minutes;
+        milliseconds_countdown = minutes * 60 * 1000;
+      }
+
+
+      uint32_t getDelay()
+      {
+        return max( uint32_t(1), minutes_countdown );
+      }
+
+
+      uint32_t getSleepDelay()
+      {
+        return ScreenSaver::getDelay() * 2;
+      }
+
+
+      void resetTimer()
+      {
+        timer = millis();
+      }
+
+
+
+      // settings panel helpers
+
+      void save()
+      {
+        uint32_t tmp = prefs::get("screensaver", max_countdown );
+        if( tmp != minutes_countdown ) {
+          countdownOld = tmp;
+          prefs::set("screensaver", minutes_countdown);
+        }
+      }
+
+
+      void increase()
+      {
+        uint32_t minutes = ScreenSaver::getDelay()+1;
+        minutes++;
+        minutes = min( max_countdown, minutes );
+        ScreenSaver::setTimer( minutes );
+      }
+
+
+      void decrease()
+      {
+        uint32_t minutes = ScreenSaver::getDelay()-1;
+        minutes--;
+        minutes = max( min_countdown, minutes );
+        ScreenSaver::setTimer( minutes );
+      }
 
 
     };

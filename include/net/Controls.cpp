@@ -33,6 +33,39 @@ namespace ICSMeter
       }
 
 
+      void loop()
+      {
+        using namespace modules;
+
+        if( daemon::connected() ) {
+
+          uint8_t tx = CIV::getTX(); // check connection health, retrieve last status
+          if(tx != 0) ScreenSaver::resetTimer(); // If transmit, refresh tempo
+          daemon::ICScan();
+          FastLed::set( tx );
+          UI::drawWidgets();
+
+        } else {
+
+          if( UI::canDraw() ) {
+            static bool active_state = false;
+            bool state = (millis()/773)%2==0;
+            if( active_state != state ) {
+              CSS::drawStyledString( &tft, state ? message : "", 160, 180, Theme::H3FontStyle );
+              active_state = state;
+            }
+          }
+
+        }
+      }
+
+
+      bool connected() // called from main loop, non blocking
+      {
+        return message ? false : true;
+      }
+
+
       void netTask(void *pvParameters)
       {
         daemon::setup();
@@ -54,37 +87,14 @@ namespace ICSMeter
         } else if ( daemon::needsWiFiChecked() ) {
           message = MSG_CHECKWIFI;
         } else if ( daemon::needsProxyChecked() ) {
-          message = proxy::checkStatus();
+          if( ScreenSaver::isAwake() ) {
+            message = proxy::checkStatus();
+          } else {
+            message = proxy::MSG_CHECKTX;
+          }
         } else {
           message = nullptr;
         }
-      }
-
-
-      bool connected() // called from main loop, non blocking
-      {
-        if (canSleep() ) {
-          // Sleep signal received (e.g. no TX connexion or screensaver enabled)
-          tft.sleep();
-          ScreenSaver::sleep();
-        } else if (canWakeup()) {
-          // Wake signal received
-          clearData();
-          tft.wakeup();
-          UI::draw();
-          ScreenSaver::reset();
-        }
-
-        if ( message && UI::canDrawUI() ) {
-          static bool active_state = false;
-          bool state = (millis()/773)%2==0;
-          if( active_state != state ) {
-            CSS::drawStyledString( &tft, state ? message : "", 160, 180, Theme::H3FontStyle );
-            active_state = state;
-          }
-          return false;
-        }
-        return true;
       }
 
 
@@ -167,7 +177,7 @@ namespace ICSMeter
       }
 
 
-      // some boolean verbs for user settings specifics
+      // some boolean verbs for user config specifics
 
       bool hasBluetooth()
       {
@@ -187,18 +197,6 @@ namespace ICSMeter
       bool needsProxyChecked()
       {
         return (IC_CONNECT == USB && (proxy::available() || !proxy::connected()));
-      }
-
-      bool canSleep()
-      {
-        return ( ScreenSaver::wakeup && proxy::available() ) // tft must be awake to go to sleep
-            && ( ( IC_CONNECT == BT && !bluetooth::available()) || ( IC_CONNECT == USB && !proxy::connected() ) );
-      }
-
-      bool canWakeup()
-      {
-        return ( !ScreenSaver::wakeup && proxy::available() ) // tft must be asleep to wake
-            && ( ( IC_CONNECT == BT && bluetooth::available() ) || ( IC_CONNECT == USB && !proxy::connected() ) );
       }
 
 

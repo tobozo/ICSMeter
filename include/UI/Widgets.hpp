@@ -57,15 +57,23 @@ namespace ICSMeter
 
     namespace ScreenSaver
     {
-      bool wakeup  = true;
-      bool enabled = false;
-      void shutdown();
-      void reset();
-      void handle();
       void setup();
-      void draw();
-      void wake();
+      void loop();
+      void enable();
+      void disable();
       void sleep();
+      void wakeup();
+      void resetTimer();
+      void setTimer( uint32_t minutes );
+      void draw();
+      bool isEnabled();  // !isDisabled()
+      bool isDisabled(); // !isEnabled()
+      bool isAwake();    // !isAsleep()
+      bool isAsleep();   // !isAwake()
+      bool shouldSleep();  // true when IC disconnects from proxy, or when sleep timer > getSleepDelay()
+      bool shouldWakeup(); // true when IC connects to proxy or when a button is pushed
+      uint32_t getDelay();      // milliseconds
+      uint32_t getSleepDelay(); // milliseconds, = 2*getDelay()
     };
 
 
@@ -74,7 +82,7 @@ namespace ICSMeter
       bool   dialog_enabled = false;
       int8_t choice = 0;
       void   draw();
-      void   handle(); // called from task
+      void   loop(); // called from task
       void   handleSettings();
       void   handleBrowsing();
       void   drawMenu();

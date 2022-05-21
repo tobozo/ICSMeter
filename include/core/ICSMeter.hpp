@@ -13,6 +13,8 @@ namespace ICSMeter
 
   void checkButtons();
 
+  void shutdown();
+
   // Fake mutex support, this helps mitigate SPI collisions
   static bool LcdMux = false;
   void takeLcdMux();
@@ -40,8 +42,10 @@ namespace ICSMeter
   {
     namespace buttons
     {
-      void check();
-      int btnA, btnB, btnC/*, btnL, btnM, btnR*/;
+      void loop();
+      void cancelBubble();
+      bool hasBubble();
+      int btnA, btnB, btnC;
       // Flags for button presses via Web site Screen Capture
       bool buttonLeftPressed   = false;
       bool buttonCenterPressed = false;
@@ -67,7 +71,7 @@ namespace ICSMeter
     namespace Beeper
     {
       void setup();
-      void handle();
+      void loop();
       void increase();
       void decrease();
       void save();
