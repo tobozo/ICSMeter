@@ -1,5 +1,4 @@
-
-#include "../core/ICSMeter.hpp"
+#include "../ICSMeter.hpp"
 
 namespace ICSMeter
 {
@@ -12,34 +11,39 @@ namespace ICSMeter
 
       constexpr const char *label = "BRIGHTNESS";
 
-      uint8_t brightness    = 64;
-      uint8_t brightnessOld = 64;
+      uint8_t brightness    = 0x40; // [0...100]
+      uint8_t brightnessOld = 0x40; // [0...100]
 
-      const uint8_t brightness_min = 0x01;
-      const uint8_t brightness_max = 0x64;
+      const uint8_t brightness_default = 0x40;
+      const uint8_t brightness_min     = 0x01; // [0...100]
+      const uint8_t brightness_max     = 0x64; // [0...100]
 
-      void setBrightness(uint8_t value);
 
       void setup()
       {
-        brightness = getPref("brightness", 64);
+        brightness = prefs::get("brightness", brightness_default );
         setBrightness( brightness );
       }
 
 
       void save()
       {
-        uint8_t tmp = getPref("brightness", 64);
+        uint8_t tmp = prefs::get("brightness", brightness_default );
         if( tmp != brightness ) {
-          setPref("brightness", brightness);
+          prefs::set("brightness", brightness);
           brightnessOld = tmp;
         }
       }
 
 
+      uint8_t getBrightness()
+      {
+        return brightness;
+      }
+
       void setBrightness( uint8_t value )
       {
-        tft.setBrightness( map(value, brightness_min, brightness_max, 0, 255) );
+        tft.setBrightness( map( value, brightness_min, brightness_max, 0x00, 0xff) );
       }
 
 

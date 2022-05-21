@@ -8,9 +8,6 @@ namespace ICSMeter
   {
 
     using namespace Theme;
-    using namespace net;
-    using namespace Utils;
-    using namespace modules;
 
 
     void setup()
@@ -27,7 +24,6 @@ namespace ICSMeter
 
     void drawWidgets( bool force_redraw )
     {
-
       if( force_redraw ) drawTop();
 
       Battery::draw( force_redraw );
@@ -75,8 +71,6 @@ namespace ICSMeter
       drawMiddle();
       drawBottom();
     }
-
-
 
 
   };

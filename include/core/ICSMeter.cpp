@@ -1,17 +1,23 @@
 #include "ICSMeter.hpp"
 
-#include "../UI/Helpers/CSS.cpp"
-#include "../misc/FastLed.hpp"
-#include "../FS/Updater.cpp"
-#include "../net/Controls.cpp"
+#include "modules/BackLight.cpp"
+#include "modules/Beeper.cpp"
+#include "modules/Buttons.cpp"
+#include "modules/FastLed.cpp"
+#include "modules/Prefs.cpp"
+#include "modules/Updater.cpp"
+
 #if IC_CONNECT==BT && IC_MODEL==705
-  #include "../net/Bluetooth.cpp"
+  #include "../net/protocols/Bluetooth.cpp"
 #endif
-#include "../net/WiFi.cpp"
+#include "../net/protocols/WiFi.cpp"
+#include "../net/protocols/CI-V.cpp"
+#include "../net/services/Screenshots.cpp"
+#include "../net/services/Proxy.cpp"
+#include "../net/Controls.cpp"
+
+#include "../UI/Helpers/CSS.cpp"
 #include "../UI/Themes/Themes.cpp"
-#include "../UI/UI.cpp"
-#include "../UI/Controls.cpp"
-#include "../UI/Widgets.hpp"
 #include "../UI/Widgets/Battery.cpp"
 #include "../UI/Widgets/DataMode.cpp"
 #include "../UI/Widgets/Measure.cpp"
@@ -19,6 +25,7 @@
 #include "../UI/Widgets/ScreenSaver.cpp"
 #include "../UI/Widgets/Settings.cpp"
 #include "../UI/Widgets/Transverter.cpp"
+#include "../UI/UI.cpp"
 
 
 namespace ICSMeter
@@ -26,6 +33,7 @@ namespace ICSMeter
 
   using namespace modules;
   using namespace UI;
+  using namespace net;
 
 
   void setup() // Main Setup
@@ -35,15 +43,12 @@ namespace ICSMeter
 
     LcdMux = false;
 
-    loadPrefs();
+    prefs::load();
 
     FSUpdater::binLoader();
 
     UI::setup();
-
     UI::drawWidgets( true );
-
-    net::setup();
 
     #if defined DEMO_MODE
       DataMode::setFilter( "FIL1" );
@@ -52,7 +57,7 @@ namespace ICSMeter
       Measure::setSecondaryValue( "14.235.000" );
     #endif
 
-    xTaskCreatePinnedToCore( UI::netTask, "netTask", 8192, NULL, 4, NULL, 1);
+    xTaskCreatePinnedToCore( daemon::netTask, "netTask", 8192, NULL, 16, NULL, 0);
 
   }
 
@@ -92,10 +97,10 @@ namespace ICSMeter
     #endif
 
 
-    if(net::connected()) {
-      uint8_t tx = getTX(); // check connection health, retrieve last status
+    if(daemon::connected()) {
+      uint8_t tx = CIV::getTX(); // check connection health, retrieve last status
       if(tx != 0) ScreenSaver::reset(); // If transmit, refresh tempo
-      ICScan();
+      daemon::ICScan();
       FastLed::set( tx );
       UI::drawWidgets();
     }
@@ -107,64 +112,33 @@ namespace ICSMeter
 
   void checkButtons()
   {
-    const uint32_t buttons_poll_delay = 0; // min delay (milliseconds) between each button poll
-    static uint32_t last_button_poll = millis();
-    uint32_t now = millis();
+    using namespace modules::buttons;
 
-    if( last_button_poll + buttons_poll_delay > now ) return;
-    last_button_poll = now;
-
-    M5.update();
-
-    btnA = M5.BtnA.isPressed();
-    btnB = M5.BtnB.wasPressed(); // no repeat on this one
-    btnC = M5.BtnC.isPressed();
+    buttons::check();
 
     if( btnA || btnB || btnC ) ScreenSaver::reset();
+
+    // immediately cancel bubble for UI button presses
+    if( buttonLeftPressed || buttonCenterPressed || buttonRightPressed ) buttonLeftPressed = buttonCenterPressed = buttonRightPressed = false;
+
     Beeper::handle();    // handle beep
-
   }
 
 
-  void loadPrefs()
+
+  void takeLcdMux()
   {
-    preferences.begin(NAME);
-
-    BackLight::setup();
-    FastLed::setup();
-    Beeper::setup();
-    ScreenSaver::setup();
-    Theme::setup();
-    Needle::setup();
-    Measure::setup();
-    Transverter::setup();
-
-    preferences.end();
+    do vTaskDelay(1);
+    while( LcdMux );
+    LcdMux = true;
   }
 
 
-  unsigned int getPref( const char* name, unsigned int default_value )
+  void giveLcdMux()
   {
-    preferences.begin(NAME);
-
-    unsigned int ret = preferences.getUInt( name, default_value );
-
-    preferences.end();
-
-    return ret;
+    LcdMux = false;
+    vTaskDelay(1);
   }
-
-
-  void setPref( const char* name, unsigned int value )
-  {
-    preferences.begin(NAME);
-
-    preferences.putUInt( name, value );
-
-    preferences.end();
-  }
-
-
 
 
 

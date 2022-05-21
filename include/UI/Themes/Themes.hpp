@@ -1,6 +1,5 @@
 #pragma once
 
-// static assets
 #include "../../assets/font.hpp"
 #include "../../assets/images.hpp"
 #include "../../assets/index_html.hpp"
@@ -35,6 +34,7 @@ namespace ICSMeter
       const uint32_t SettingsMenuDarkColor   = 0x000000U;
 
       void set();
+      void setup();
 
       // imported types from LGFXMeter:
       //

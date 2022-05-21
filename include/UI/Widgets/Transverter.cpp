@@ -1,4 +1,3 @@
-
 #include "../Widgets.hpp"
 
 namespace ICSMeter
@@ -9,12 +8,10 @@ namespace ICSMeter
 
     namespace Transverter
     {
-      using namespace CSS;
 
       int8_t value = 0, valueOld = 0;
 
-
-      const TextStyle_t labelTextStyle =
+      const CSS::TextStyle_t labelTextStyle =
       {
         .fgColor   = 0xffffffU,
         .bgColor   = 0x000000U,
@@ -22,20 +19,20 @@ namespace ICSMeter
         .datum     = MC_DATUM,
         .paddingX  = 0
       };
-      const FontStyle_t labelFontStyle     = { &Font0,  &labelTextStyle, TRANSPARENT };
+      const CSS::FontStyle_t labelFontStyle     = { &Font0,  &labelTextStyle, CSS::TRANSPARENT };
 
 
       void setup()
       {
-        value = getPref("transverter", 0);
+        value = prefs::get("transverter", 0);
       }
 
 
       void save()
       {
-        int8_t tmp = getPref("transverter", 0);
+        int8_t tmp = prefs::get("transverter", 0);
         if( value != tmp ) {
-          setPref("transverter", Transverter::value);
+          prefs::set("transverter", Transverter::value);
           valueOld = tmp;
         }
       }
@@ -55,8 +52,8 @@ namespace ICSMeter
 
       void draw( bool force_redraw )
       {
-        if (ScreenSaver::enabled || Settings::dialog_enabled ) return;
-        if ( force_redraw || value > 0) {
+        if ( value > 0 && ( force_redraw || valueOld != value ) ) {
+          valueOld = value;
           char label[16];
           snprintf(label, 15, "LO%d", value);
           CSS::drawStyledBox( &tft, label, 62, 4, 26, 13, &Theme::BadgeBoxStyle );

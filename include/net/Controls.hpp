@@ -2,68 +2,118 @@
 
 #include "../core/ICSMeter.hpp"
 
-
 namespace ICSMeter
 {
 
   namespace net
   {
-    uint8_t htmlGetRequest;
 
-    bool proxyConnected = false;
-    bool txConnected    = true;
+    static const char *message = nullptr; // connection message
+    constexpr const char* USER_AGENT = "M5Stack";
 
-    bool startup        = true;
-    bool wakeup         = true;
 
-    bool reset          = true;
+    namespace daemon
+    {
+      void setup();
+      void netTask(void *pvParameters);
+      void check();
+      void ICScan();
+      bool connected();
 
-    void setup();
-    void ICScan();
-    bool connected(); // Manage connexion error
+      bool hasBluetooth();
+      bool needsPairing();
+      bool needsWiFiChecked();
+      bool needsProxyChecked();
+      bool canSleep();
+      bool canWakeup();
 
-    void sendCommand(char *request, size_t n, char *buffer, uint8_t limit); // Send CI-V Command dispatcher
+      bool dispatchCommand(char *request, size_t n, char *buffer, uint8_t limit); // Send CI-V Command dispatcher
 
-    // verbs from getters and setters are UI relative (not IC relative unless specified)
+      // /!\ verbs are UI relative
+      void setDataMode();  // counter/label values
+      void setFrequency(); // counter/label values
+      void setSmeter();    // needle values
+      void setSWR();       // needle values
+      void setPower();     // needle values
+      void setMode();      // filter and mode
 
-    uint8_t getTX();     // get last response from IC
-    void setDataMode();  // counter/label values
-    void setFrequency(); // counter/label values
+      void clearData();
+    };
 
-    // needle values
-    void setSmeter();
-    void setSWR();
-    void setPower();
 
-    // filter and mode
-    void setMode();
+    namespace CIV
+    {
+      typedef struct command_t { char bytes[3]; } command_t;
+
+      struct GaugeMeasure_t
+      {
+        float angle;
+        String label;
+      };
+
+      struct FilterMode_t
+      {
+        String filter;
+        String mode;
+      };
+      // /!\ verbs are IC relative
+      uint8_t getTX();
+      char getDataMode();  // counter/label values
+      // gauge measures
+      GaugeMeasure_t getSmeter();
+      GaugeMeasure_t getSWR();
+      GaugeMeasure_t getPower();
+      // filter and mode
+      FilterMode_t getMode();
+      String getFrequency(); // counter/label values
+    };
+
 
     namespace screenshot
     {
-      bool M5Screen24bmp(); // Get screenshot
+      void setup();
+      void M5Screen24bmp( WiFiClient *client ); // Get screenshot
       void check(); // manage screenshot
+      void handle404();
+      void handleRoot();
+      void sendFavicon();
     };
 
 
     namespace wifi
     {
-      bool connected = false;
-      // Send CI-V Command by Wifi
-      void sendCommandWifi(char *request, size_t n, char *buffer, uint8_t limit);
-      // Wifi callback On
-      void callbackWifiOn(WiFiEvent_t event, WiFiEventInfo_t info);
-      // Wifi callback Off
-      void callbackWifiOff(WiFiEvent_t event, WiFiEventInfo_t info);
+      void setup();
+      bool available();
+      void WiFiEvent(WiFiEvent_t event);
+      bool sendCommand(char *request, size_t n, char *buffer, uint8_t limit);
     };
 
 
     namespace bluetooth
     {
-      bool connected = false;
-      // Send CI-V Command by Bluetooth
-      void sendCommandBt(char *request, size_t n, char *buffer, uint8_t limit);
-      // Bluetooth callback
-      void begin();
+      void setup();
+      bool available();
+      bool sendCommand(char *request, size_t n, char *buffer, uint8_t limit);
+    };
+
+
+    typedef enum proxy_flags_t
+    {
+      PROXY_ONLINE,
+      PROXY_OFFLINE,
+      TX_ONLINE,
+      TX_OFFLINE
+    } proxy_flags;
+
+    namespace proxy
+    {
+      void setup();
+      bool available();
+      bool connected();
+      void setFlag( proxy_flags_t flag );
+      uint32_t errors_count = 0;
+      const uint32_t max_errors = 100; // mark the proxy as offline when this threshold is reached
+      const char* checkStatus();
     };
 
 

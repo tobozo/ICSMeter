@@ -1,6 +1,4 @@
 
-
-
 namespace ICSMeter
 {
 
@@ -9,6 +7,7 @@ namespace ICSMeter
 
     namespace ScreenSaver
     {
+      using namespace modules;
 
       uint32_t timer;
       uint32_t countdown;
@@ -21,21 +20,31 @@ namespace ICSMeter
       bool xDir = rand() & 1;
       bool yDir = rand() & 1;
 
+      const uint16_t logo_width  = 44;
+      const uint16_t logo_height = 22;
+      const uint16_t min_x = 44;
+      const uint16_t max_x = 232;
+      const uint16_t min_y = 22;
+      const uint16_t max_y = 196;
+
+      const float brightness_dim = 0.5; // percentage of current brightness
+      uint8_t old_brightness = 0x40;
 
       constexpr const char *label = "TIMEOUT";
 
+
       void setup()
       {
-        countdown = getPref("screensaver", 60);
+        countdown = prefs::get("screensaver", 60);
       }
 
 
       void save()
       {
-        uint32_t tmp = getPref("screensaver", 60);
+        uint32_t tmp = prefs::get("screensaver", 60);
         if( tmp != countdown ) {
           countdownOld = tmp;
-          setPref("screensaver", countdown);
+          prefs::set("screensaver", countdown);
         }
       }
 
@@ -67,64 +76,65 @@ namespace ICSMeter
       }
 
 
+      void sleep()
+      {
+        Settings::dialog_enabled = false;
+        old_brightness = BackLight::getBrightness();
+        BackLight::setBrightness( old_brightness * brightness_dim );
+        enabled = true;
+        wakeup = false;
+        timer = 0;
+        tft.fillScreen(TFT_BLACK);
+      }
+
+      void wake()
+      {
+        tft.fillScreen(TFT_BLACK);
+        //clearData();
+        BackLight::setBrightness( old_brightness );
+        UI::drawWidgets( true );
+        enabled = false;
+        wakeup  = true;
+        //reset();
+        //Settings::dialog_enabled = false;
+        vTaskDelay(100);
+      }
+
+
       void handle()
       {
-        if(! enabled ) return;
-
-        if( millis() - timer > countdown * 60 * 1000 ) { // time to save screen, prepare display and clear !
-          Settings::dialog_enabled = false;
-          enabled = true;
-          timer = 0;
-          tft.fillScreen(TFT_BLACK);
+        if( !enabled ) {
+          if( millis() - timer > countdown * 60 * 1000 ) { // time to save screen, prepare display and clear !
+            ScreenSaver::sleep();
+          }
           return;
         }
 
-        if( timer != 0 ) { // wakeup
-          tft.fillScreen(TFT_BLACK);
-          //clearData();
-          UI::drawWidgets( true );
-          enabled = false;
-          Settings::dialog_enabled = false;
-          vTaskDelay(100);
+        if( wakeup ) { // wakeup
+          ScreenSaver::wake();
           return;
         }
 
-        tft.fillRect(x, y, 44, 22, TFT_BLACK);
-
-        if (xDir)  x += 1;
-        else  x -= 1;
-
-        if (yDir)  y += 1;
-        else  y -= 1;
-
-        if (x < 44) {
-          xDir = true;
-          x = 44;
-        } else if (x > 232) {
-          xDir = false;
-          x = 232;
-        }
-
-        if (y < 22) {
-          yDir = true;
-          y = 22;
-        } else if (y > 196) {
-          yDir = false;
-          y = 196;
-        }
-
-        tft.drawJpg(logo, sizeof(logo), x, y, 44, 22);
-
+        ScreenSaver::draw();
         vTaskDelay(75);
-
-        // if (IC_MODEL == 705 && IC_CONNECT == BT && bluetooth::connected == false) {
-        //   vTaskDelay(75);
-        // } else if (IC_CONNECT == USB && wifi::connected == false) {
-        //   vTaskDelay(75);
-        // }
-
-
       }
+
+
+      void draw()
+      {
+        x += (xDir) ? 1 : -1;
+        y += (yDir) ? 1 : -1;
+
+        xDir = (x < min_x) ? true  : (x > max_x) ? false : xDir;
+        x    = (x < min_x) ? min_x : (x > max_x) ? max_x : x; // constrain
+
+        yDir = (y < min_y) ? true  : (y > max_y) ? false : yDir;
+        y    = (y < min_y) ? min_y : (y > max_y) ? max_y : y; // constrain
+
+        tft.drawJpg(logo, sizeof(logo), x, y, logo_width, logo_height);
+        tft.drawRect( x-1, y-1, logo_width+2, logo_height+2, TFT_BLACK );
+      }
+
 
 
     };

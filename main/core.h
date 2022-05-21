@@ -16,6 +16,8 @@
 #include <Preferences.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
 #include <SD.h>
 #include <FS.h>
 #include <SPIFFS.h>
@@ -35,7 +37,7 @@
 #include <M5StackUpdater.h>
 
 #define DEBUG              0
-#define VERSION            "0.1.5"
+#define VERSION            "0.1.7"
 #define AUTHOR             "F4HWN"
 #define NAME               "ICSMeter"
 #define REPO_URL           "https://github.com/armel/ICSMeter"

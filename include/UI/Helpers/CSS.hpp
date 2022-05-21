@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../core/ICSMeter.hpp"
+#include "../../assets/font.hpp"
 
 
 namespace ICSMeter
@@ -9,21 +10,22 @@ namespace ICSMeter
   namespace CSS
   {
 
-    typedef std::uint32_t boxcolor_t; // just a shorhand so the next struct declaration has less code density :)
-    typedef std::uint32_t textcolor_t; // just a shorhand so the next struct declaration has less code density :)
-    typedef const bool transparency_t;
+    typedef std::uint32_t boxcolor_t;  // shorthand for code density :)
+    typedef std::uint32_t textcolor_t; // shorthand for code density :)
+
+    typedef const bool transparency_t; // kinda stupid to alias a bool, but future-proof with opacity
 
     constexpr transparency_t TRANSPARENT = true;
     constexpr transparency_t OPAQUE      = false;
 
-    // same struct as lgfx::TextStyle without the defaults
+    // simplified version of lgfx::TextStyle ( size_x and size_y merged, no utf8/cp437 )
     struct TextStyle_t
     {
-      textcolor_t fgColor  ;// = 0xFFFFFFU;
-      textcolor_t bgColor  ;// = 0;
-      const float       size     ;// = 1;
-      const textdatum_t datum    ;// = textdatum_t::top_left;
-      const uint32_t    paddingX ;// = 0;
+      textcolor_t       fgColor  ;
+      textcolor_t       bgColor  ;
+      const float       size     ;
+      const textdatum_t datum    ;
+      const uint32_t    paddingX ;
     };
 
     // holder for font face + font style

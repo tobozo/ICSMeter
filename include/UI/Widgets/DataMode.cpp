@@ -1,6 +1,4 @@
 
-
-
 namespace ICSMeter
 {
 
@@ -12,6 +10,7 @@ namespace ICSMeter
 
       String valueFilter, valueMode;
       String oldValueFilter, oldValueMode;
+
 
       bool needs_redraw()
       {
@@ -34,11 +33,13 @@ namespace ICSMeter
       void draw( bool force_redraw )
       {
         if( force_redraw || valueFilter!=oldValueFilter ) {
-          CSS::drawStyledBox( &tft, valueFilter.c_str(), 40, 198, 40, 15, &Theme::BadgeBoxStyle );
+          if( valueFilter!="" )
+            CSS::drawStyledBox( &tft, valueFilter.c_str(), 40, 198, 40, 15, &Theme::BadgeBoxStyle );
           oldValueFilter = valueFilter;
         }
         if( force_redraw || valueMode!=oldValueMode ) {
-          CSS::drawStyledBox( &tft, valueMode.c_str(), 240, 198, 40, 15, &Theme::BadgeBoxStyle );
+          if( valueMode!="" )
+            CSS::drawStyledBox( &tft, valueMode.c_str(), 240, 198, 40, 15, &Theme::BadgeBoxStyle );
           oldValueMode = valueMode;
         }
       }

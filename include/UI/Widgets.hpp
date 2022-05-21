@@ -1,8 +1,5 @@
 #pragma once
 
-#include "Controls.hpp"
-#include "Themes/Themes.hpp"
-
 
 namespace ICSMeter
 {
@@ -20,8 +17,19 @@ namespace ICSMeter
     };
 
 
+    namespace DataMode
+    {
+      char mode = 0;
+      bool needs_redraw();
+      void setFilter( String value );
+      void setMode( String value );
+      void draw( bool force_redraw = false );
+    };
+
+
     namespace Measure
     {
+      void   setup();
       void   reset();
       bool   needs_redraw();
       int8_t value = 1;
@@ -38,6 +46,7 @@ namespace ICSMeter
     {
       void setup();
       void reset();
+      bool force_reset = true;
       bool needs_redraw();
       void onThemeChange();
       void set( float _angle );
@@ -46,24 +55,17 @@ namespace ICSMeter
     };
 
 
-    namespace Transverter
+    namespace ScreenSaver
     {
-      bool   needs_redraw();
-      int8_t get();
-      void   set( int8_t _value );
-      void   save();
-      void   draw( bool force_redraw = false );
-      constexpr const double choices[] = { 0, TRANSVERTER_LO_1, TRANSVERTER_LO_2, TRANSVERTER_LO_3, TRANSVERTER_LO_4, TRANSVERTER_LO_5 };
-    };
-
-
-    namespace DataMode
-    {
-      char mode = 0;
-      bool needs_redraw();
-      void setFilter( String value );
-      void setMode( String value );
-      void draw( bool force_redraw = false );
+      bool wakeup  = true;
+      bool enabled = false;
+      void shutdown();
+      void reset();
+      void handle();
+      void setup();
+      void draw();
+      void wake();
+      void sleep();
     };
 
 
@@ -80,12 +82,15 @@ namespace ICSMeter
     };
 
 
-    namespace ScreenSaver
+    namespace Transverter
     {
-      bool enabled = false;
-      void shutdown();
-      void reset();
-      void handle();
+      void   setup();
+      bool   needs_redraw();
+      int8_t get();
+      void   set( int8_t _value );
+      void   save();
+      void   draw( bool force_redraw = false );
+      constexpr const double choices[] = { 0, TRANSVERTER_LO_1, TRANSVERTER_LO_2, TRANSVERTER_LO_3, TRANSVERTER_LO_4, TRANSVERTER_LO_5 };
     };
 
 

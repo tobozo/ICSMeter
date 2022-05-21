@@ -18,16 +18,16 @@ namespace ICSMeter
 
       void setup()
       {
-        theme = getPref("theme", 0 );
+        theme = prefs::get("theme", 0 );
         set();
       }
 
 
       void save()
       {
-        int8_t tmp = getPref("theme", 0 );
+        int8_t tmp = prefs::get("theme", 0 );
         if( theme != tmp ) {
-          setPref("theme", theme);
+          prefs::set("theme", theme);
           themeOld = theme;
         }
       }
@@ -54,9 +54,6 @@ namespace ICSMeter
 
       const layout_t layoutClassic = { &topClassic, middleClassicPtr, &bottomClassic, TFT_FRONT_CLASSIC, TFT_BACK_CLASSIC };
       const layout_t layoutDark    = { &topDark,    middleDarkPtr,    &bottomDark,    TFT_FRONT_DARK,    TFT_BACK_DARK    };
-
-      //const image_t bgImageClassic   = { 16, smeterFullClassic,      smeterFullClassic_len,           IMAGE_JPG, 320, 240 };
-      //const image_t bgImageDark      = { 16, smeterFullClassic,      smeterFullClassic_len,           IMAGE_JPG, 320, 240 };
 
       // CSS declarations
 
@@ -107,8 +104,6 @@ namespace ICSMeter
       const char        *choices[THEMES_COUNT]          = {"CLASSIC",            "DARK"}; // labels for settings menu
       const layout_t    *layouts[THEMES_COUNT]          = { &layoutClassic,      &layoutDark }; // pointers to layouts
       const FontStyle_t *H3FontStyleTheme[THEMES_COUNT] = { &H3FontStyleClassic, &H3FontStyleDark }; // pointers to font styles
-      //const image_t *bgImageTheme[THEMES_COUNT] = { &bgImageClassic, &bgImageDark };
-
 
     };
 

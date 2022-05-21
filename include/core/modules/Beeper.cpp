@@ -1,5 +1,4 @@
-
-#include "../core/ICSMeter.hpp"
+#include "../ICSMeter.hpp"
 
 namespace ICSMeter
 {
@@ -9,6 +8,8 @@ namespace ICSMeter
 
     namespace Beeper
     {
+
+      using namespace buttons;
 
       int8_t beepVolume    = 0;
       int8_t beepVolumeOld = 0;
@@ -27,16 +28,16 @@ namespace ICSMeter
 
       void setup()
       {
-        beepVolume = getPref("beep", 0);
+        beepVolume = prefs::get("beep", 0);
         M5.Speaker.setVolume( beepVolume );
       }
 
 
       void save()
       {
-        int8_t tmp = getPref("beep", 0);
+        int8_t tmp = prefs::get("beep", 0);
         if( beepVolume != tmp ) {
-          setPref("beep", beepVolume);
+          prefs::set("beep", beepVolume);
           beepVolumeOld = tmp;
         }
       }

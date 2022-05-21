@@ -1,6 +1,4 @@
 
-
-
 namespace ICSMeter
 {
 
@@ -10,15 +8,12 @@ namespace ICSMeter
     namespace Measure
     {
 
-      using namespace Theme;
-      using namespace CSS;
-
       int8_t oldValue = 5;
       String olPrimaryValue, oldSecondaryValue;
       String primaryValue, secondaryValue;
       constexpr const char *choices[] = {"PWR", "S", "SWR"};
 
-      const TextStyle_t labelTextStyle =
+      const CSS::TextStyle_t labelTextStyle =
       {
         .fgColor   = 0xffffffU,
         .bgColor   = 0x000000U,
@@ -27,16 +22,16 @@ namespace ICSMeter
         .paddingX  = 0
       };
 
-      const TextStyle_t primaryTextStyle =
+      const CSS::TextStyle_t primaryTextStyle =
       {
         .fgColor   = 0x000000U,
         .bgColor   = 0xffffffU,
         .size      = 1,
         .datum     = MC_DATUM,
-        .paddingX  = 190
+        .paddingX  = 194
       };
 
-      const TextStyle_t secondaryTextStyle =
+      const CSS::TextStyle_t secondaryTextStyle =
       {
         .fgColor   = 0xffffffU,
         .bgColor   = 0x000000U,
@@ -46,22 +41,22 @@ namespace ICSMeter
       };
 
 
-      const FontStyle_t labelFontStyle     = { &YELLOWCRE8pt7b,  &labelTextStyle    , OPAQUE };
-      const FontStyle_t primaryFontStyle   = { &stencilie16pt7b, &primaryTextStyle  , OPAQUE };
-      const FontStyle_t secondaryFontStyle = { &YELLOWCRE8pt7b,  &secondaryTextStyle, OPAQUE };
+      const CSS::FontStyle_t labelFontStyle     = { &YELLOWCRE8pt7b,  &labelTextStyle    , CSS::OPAQUE };
+      const CSS::FontStyle_t primaryFontStyle   = { &stencilie16pt7b, &primaryTextStyle  , CSS::OPAQUE };
+      const CSS::FontStyle_t secondaryFontStyle = { &YELLOWCRE8pt7b,  &secondaryTextStyle, CSS::OPAQUE };
 
 
       void setup()
       {
-        value = getPref("measure", 1);
+        value = prefs::get("measure", 1);
       }
 
 
       void save()
       {
-        int8_t tmp = getPref("measure", 1);
+        int8_t tmp = prefs::get("measure", 1);
         if( value != tmp ) {
-          setPref("measure", value);
+          prefs::set("measure", value);
           oldValue = tmp;
         }
       }
@@ -104,7 +99,7 @@ namespace ICSMeter
           for (j = 0; j <= 2; j++) {
             if (value == j) {
               tft.setTextColor(Theme::layout->fgcolor);
-              net::reset = true;
+              Needle::force_reset = true; // why ?
             } else {
               tft.setTextColor(TFT_DARKGREY);
             }
@@ -122,7 +117,8 @@ namespace ICSMeter
         setFontStyle( &tft, &primaryFontStyle );
         valString.replace(".", ",");
         tft.setTextColor(Theme::layout->fgcolor, Theme::layout->bgcolor);
-        CSS::drawStyledString( &tft, valString.c_str(), x, y, nullptr );
+        if( valString != "" )
+          CSS::drawStyledString( &tft, valString.c_str(), x, y, nullptr );
       }
 
 
@@ -131,7 +127,8 @@ namespace ICSMeter
         oldSecondaryValue = valString;
         setFontStyle( &tft, &secondaryFontStyle );
         tft.setTextColor(Theme::layout->fgcolor, Theme::layout->bgcolor);
-        CSS::drawStyledString( &tft, valString.c_str(), x, y, nullptr );
+        if( valString != "" )
+          CSS::drawStyledString( &tft, valString.c_str(), x, y, nullptr );
       }
 
 

@@ -1,8 +1,5 @@
 #include "CSS.hpp"
 
-#include "../../assets/font.hpp"
-//#include "../Themes/Themes.hpp"
-
 namespace ICSMeter
 {
 

@@ -5,8 +5,6 @@
 namespace ICSMeter
 {
 
-  Preferences preferences;
-
   M5GFX &tft(M5.Lcd); // provide a shorthand to "M5.Lcd"
 
   void setup(); // Main Setup
@@ -14,27 +12,68 @@ namespace ICSMeter
   void loop(); // Main loop
 
   void checkButtons();
-  int btnA, btnB, btnC, btnL, btnM, btnR;
 
-  void loadPrefs();
-  unsigned int getPref( const char* name, unsigned int default_value );
-  void setPref( const char* name, unsigned int value );
+  // Fake mutex support, this helps mitigate SPI collisions
+  static bool LcdMux = false;
+  void takeLcdMux();
+  void giveLcdMux();
 
-  static bool LcdMux = false; // Fake mutex, this helps mitigate SPI collisions
 
-  void takeLcdMux()
+  namespace prefs
   {
-    do vTaskDelay(1);
-    while( LcdMux );
-    LcdMux = true;
-  }
+    void load();
+    unsigned int get( const char* name, unsigned int default_value );
+    void set( const char* name, unsigned int value );
+  };
 
-
-  void giveLcdMux()
+  namespace FSUpdater
   {
-    LcdMux = false;
-    vTaskDelay(1);
-  }
+    void binLoader();
+    void getBinaryList( fs::FS *sourceFS );
+    #if defined GZIP_BINLOADER
+      void updateProgressCallback( uint8_t progress );
+    #endif
+  };
+
+
+  namespace modules
+  {
+    namespace buttons
+    {
+      void check();
+      int btnA, btnB, btnC/*, btnL, btnM, btnR*/;
+      // Flags for button presses via Web site Screen Capture
+      bool buttonLeftPressed   = false;
+      bool buttonCenterPressed = false;
+      bool buttonRightPressed  = false;
+    };
+
+    namespace BackLight
+    {
+      void setup();
+      uint8_t getBrightness();
+      void setBrightness( uint8_t value );
+      void increase();
+      void decrease();
+      void save();
+    };
+
+    namespace FastLed
+    {
+      void setup();
+      void set( uint8_t tx );
+    };
+
+    namespace Beeper
+    {
+      void setup();
+      void handle();
+      void increase();
+      void decrease();
+      void save();
+    };
+  };
+
 
 
 };

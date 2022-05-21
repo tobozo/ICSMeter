@@ -1,6 +1,5 @@
-#include "../core/ICSMeter.hpp"
-#include "../UI/UI.hpp"
-
+#include "../ICSMeter.hpp"
+#include "../../UI/UI.hpp"
 #include <vector>
 
 namespace ICSMeter
@@ -11,19 +10,26 @@ namespace ICSMeter
 
     using namespace UI;
     using namespace CSS;
+    using namespace modules::buttons;
 
     constexpr const char* SPIFFS_MSG1           = "Flash File System";
     constexpr const char* SPIFFS_MSG2           = "needs to be formatted.";
     constexpr const char* SPIFFS_MSG3           = "It takes up to 4 minutes.";
     constexpr const char* SPIFFS_MSG4           = "Please, wait until ";
     constexpr const char* SPIFFS_MSG5           = "the application starts !";
+    constexpr const char* SPIFFS_MESSAGES[]     = {SPIFFS_MSG1, SPIFFS_MSG2, SPIFFS_MSG3, SPIFFS_MSG4, SPIFFS_MSG5 };
     constexpr const char* SD_MSG_MOUNTFAIL      = "SD Mount Failed";
     constexpr const char* SPIFFS_MSG_MOUNTFAIL  = "SPIFFS Mount Failed";
     constexpr const char* SPIFFS_MSG_FORMATTING = "SPIFFS Formating...";
-    constexpr const char* BIN_LOADER_VERSION    = "Bin Loader V0.2";
+    #if !defined GZIP_BINLOADER // no gzip support, skip gzipped files
+      constexpr const char* BIN_LOADER_VERSION    = "Bin Loader V0.2";
+    #else
+      constexpr const char* BIN_LOADER_VERSION    = "Bin Loader V0.3";
+    #endif
     constexpr const char* BIN_LOADER_SPI        = "SPI Flash File Storage";
     constexpr const char* BIN_LOADER_SD         = "SD Card Storage";
 
+    constexpr const uint16_t MAX_ITEMS_IN_MENU = 128;
 
     struct loadable_bin_t
     {
@@ -31,9 +37,8 @@ namespace ICSMeter
       String path;
     };
 
-    constexpr const uint16_t MAX_ITEMS_IN_MENU = 128;
-    std::vector<loadable_bin_t> binFileNames; // not optimal but better than wasting 128*sizeof(loadable_bin_t)
 
+    std::vector<loadable_bin_t> binFileNames; // not optimal but better than blindly allocating 128*sizeof(loadable_bin_t)
 
     // CSS declarations
 
@@ -104,11 +109,6 @@ namespace ICSMeter
     #endif
 
 
-    void onMessage( const String& message )
-    {
-      CSS::drawStyledString( &tft, message.c_str(), 160, 20, &StyleH1 );
-    }
-
 
     void binLoader()
     {
@@ -127,14 +127,17 @@ namespace ICSMeter
       if (SPIFFS.begin()) {
         getBinaryList( &SPIFFS );
       } else {
+
+        size_t msgCount = sizeof( SPIFFS_MESSAGES ) / sizeof( const char* );
+        int posy = 20;
+        for( int i=0; i<msgCount; i++ ) {
+          CSS::drawStyledString( &tft, SPIFFS_MESSAGES[i], 160, posy, i==0 ? &StyleH1 : nullptr );
+          posy += (i==0 || i==msgCount-2 ) ? 30 : 50;
+        }
         Serial.println( SPIFFS_MSG_MOUNTFAIL );
-        CSS::drawStyledString( &tft, SPIFFS_MSG1, 160, 20,  &StyleH1 );
-        CSS::drawStyledString( &tft, SPIFFS_MSG2, 160, 50,  nullptr );
-        CSS::drawStyledString( &tft, SPIFFS_MSG3, 160, 100, nullptr );
-        CSS::drawStyledString( &tft, SPIFFS_MSG4, 160, 150, nullptr );
-        CSS::drawStyledString( &tft, SPIFFS_MSG5, 160, 180, nullptr );
         Serial.println( SPIFFS_MSG_FORMATTING );
         SPIFFS.format(); // Format SPIFFS...
+        tft.clear();
       }
 
       if (SD.begin(GPIO_NUM_4, SPI, 25000000)) {
@@ -225,7 +228,6 @@ namespace ICSMeter
 
         if (change != cursor) {
           change = cursor;
-          //tft.setTextPadding(320);
 
           uint8_t i = 0;
           for (uint8_t j = (start * limit); j < stop; j++) {
@@ -248,7 +250,6 @@ namespace ICSMeter
         vTaskDelay(100);
       }
       SD.end(); // If not Bluetooth doesn't work !!!
-
     }
 
   };

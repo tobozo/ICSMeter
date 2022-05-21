@@ -3,10 +3,6 @@
 #include "../UI/UI.hpp"
 #include "../UI/Widgets.hpp"
 
-// Web site Screen Capture stuff
-#define GET_unknown 0
-#define GET_index_page  1
-#define GET_screenshot  2
 
 
 namespace ICSMeter
@@ -15,672 +11,198 @@ namespace ICSMeter
   namespace net
   {
 
-    using namespace wifi;
-    using namespace bluetooth;
-    using namespace Utils;
-    using namespace UI;
-
-    WiFiServer httpServer(80);
-    WiFiClient webClient, civClient;
-
-    // Flags for button presses via Web site Screen Capture
-    bool buttonLeftPressed   = false;
-    bool buttonCenterPressed = false;
-    bool buttonRightPressed  = false;
-
-    constexpr const char* MSG_NEEDPAIRING = "Need Pairing";
-    constexpr const char* MSG_CHECKWIFI   = "Check Wifi";
-    constexpr const char* MSG_CHECKTX     = "Check TX";
-    constexpr const char* MSG_CHECKPROXY  = "Check Proxy";
-    constexpr const char* MSG_TX_UP       = "TX connected";
-    constexpr const char* MSG_TX_DOWN     = "TX disconnected";
-
-
-    void setup()
+    namespace daemon
     {
-      if( strcmp( WIFI_SSID, "YOUR WIFI SSID" )==0 || strcmp( WIFI_SSID, "YOUR WIFI PASSWORD" )==0 ) {
-        WiFi.begin();
-        log_d("No credentials provided in settings.h, using previously saved tokens, if any...");
-      } else {
-        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+      using namespace Utils;
+      using namespace UI;
+
+      constexpr const char* MSG_NEEDPAIRING = "Need Pairing";
+      constexpr const char* MSG_CHECKWIFI   = "Check Wifi";
+
+
+      void setup()
+      {
+        if( !wifi::available() ) {
+          wifi::setup(); // non blocking wifi setup
+        }
+
+        if( hasBluetooth() ) {
+          bluetooth::setup(); // start BT if needed
+        }
       }
 
-      uint8_t attempts = 0;
-      while (WiFi.status() != WL_CONNECTED && attempts <= 10) {
-        vTaskDelay(250);
-        attempts += 1;
+
+      void netTask(void *pvParameters)
+      {
+        daemon::setup();
+
+        for (;;) {
+
+          screenshot::check(); // check for queued screenshot request
+          daemon::check();
+
+          vTaskDelay( 10 );
+        }
       }
 
-      httpServer.begin(); // Start server (for Web site Screen Capture)
 
-      // now start BT if needed
-      if(IC_MODEL == 705 && IC_CONNECT == BT) {
-
-        bluetooth::begin();
-
-      } else {
-        if (WiFi.status() == WL_CONNECTED) wifi::connected = true;
-      }
-    }
-
-
-
-    // Send CI-V Command dispatcher
-    void sendCommand(char *request, size_t n, char *buffer, uint8_t limit)
-    {
-      if (IC_MODEL == 705 && IC_CONNECT == BT)
-        sendCommandBt(request, n, buffer, limit);
-      else
-        sendCommandWifi(request, n, buffer, limit);
-    }
-
-    uint8_t getTX()
-    {
-      uint8_t value;
-
-      static char buffer[5];
-      const char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x1C, 0x00, 0xFD};
-
-      size_t n = sizeof(request) / sizeof(request[0]);
-
-      sendCommand((char*)request, n, buffer, 5);
-
-      if (buffer[4] <= 1) {
-        value = buffer[4];
-      } else {
-        value = 0;
-      }
-
-      return value;
-    }
-
-
-    void ICScan()
-    {
-      setMode();
-      setFrequency();
-
-      switch (Measure::value) {
-        case 0:
-          setPower();
-        break;
-        case 1:
-          setSmeter();
-        break;
-        case 2:
-          setSWR();
-        break;
-      }
-    }
-
-
-    const char* proxyStatus()
-    {
-      HTTPClient http;
-
-      String command = "";
-      String response = "";
-      const char *message = nullptr;
-
-      const char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x03, 0xFD};
-      char s[4];
-
-      //Settings::lock = false;
-
-      for (uint8_t i = 0; i < 6; i++) {
-        sprintf(s, "%02x,", request[i]);
-        command += String(s);
-      }
-
-      command += BAUDE_RATE + String(",") + SERIAL_DEVICE;
-
-      http.begin(civClient, PROXY_URL + String(":") + PROXY_PORT + String("/") + String("?civ=") + command); // Specify the URL
-      http.addHeader("User-Agent", "M5Stack");                                                               // Specify header
-      http.addHeader("Connection", "keep-alive");                                                            // Specify header
-      http.setTimeout(100);                                                                                  // Set Time Out
-      uint16_t httpCode = http.GET();                                                                                 // Make the request
-      if (httpCode == 200) {
-        proxyConnected = true;
-
-        response = http.getString(); // Get data
-        response.trim();
-
-        if (response != "") {
-          Serial.println( MSG_TX_UP );
-          txConnected = true;
-          //message = nullptr;
+      void check() // called from task, may induce network blocking operations
+      {
+        if ( daemon::needsPairing() ) {
+          message = MSG_NEEDPAIRING;
+        } else if ( daemon::needsWiFiChecked() ) {
+          message = MSG_CHECKWIFI;
+        } else if ( daemon::needsProxyChecked() ) {
+          message = proxy::checkStatus();
         } else {
-          Serial.println( MSG_TX_DOWN );
-          txConnected = false;
-          message = MSG_CHECKTX;
+          message = nullptr;
         }
-      } else {
-        message = MSG_CHECKPROXY;
-      }
-      http.end();
-
-      return message;
-    }
-
-
-
-    bool connected() // Manage connexion error
-    {
-      const char *message = nullptr;
-
-      if (IC_MODEL == 705 && IC_CONNECT == BT && bluetooth::connected == false) {
-        message = MSG_NEEDPAIRING;
-      } else if (IC_CONNECT == USB && wifi::connected == false) {
-        message = MSG_CHECKWIFI;
-      } else if (IC_CONNECT == USB && (proxyConnected == false || txConnected == false)) {
-        message = proxyStatus();
       }
 
-      // Shutdown screen if no TX connexion
-      if (wakeup == true && startup == false) {
-        if ((IC_CONNECT == BT && bluetooth::connected == false) || (IC_CONNECT == USB && txConnected == false)) {
+
+      bool connected() // called from main loop, non blocking
+      {
+        if (canSleep() ) {
+          // Sleep signal received (e.g. no TX connexion or screensaver enabled)
           tft.sleep();
-          wakeup = false;
-        }
-      } else if (wakeup == false && startup == false) {
-        if ((IC_CONNECT == BT && bluetooth::connected == true) || (IC_CONNECT == USB && txConnected == true)) {
+          ScreenSaver::sleep();
+        } else if (canWakeup()) {
+          // Wake signal received
           clearData();
           tft.wakeup();
           UI::draw();
-          wakeup = true;
           ScreenSaver::reset();
         }
-      }
 
-      if ( message && UI::canDrawUI() ) {
-        static bool active_state = false;
-        bool state = (millis()/773)%2==0;
-        if( active_state != state ) {
-          CSS::drawStyledString( &tft, state ? message : "", 160, 180, Theme::H3FontStyle );
-          active_state = state;
-        }
-        return false;
-      }
-      return true;
-    }
-
-
-
-
-
-
-    void setSmeter()
-    {
-      String valString;
-
-      static char buffer[6];
-      char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x15, 0x02, 0xFD};
-      char str[2];
-
-      uint8_t val0 = 0;
-      float_t val1 = 0;
-      static uint8_t val2 = 0;
-
-      float_t angle = 0;
-
-      size_t n = sizeof(request) / sizeof(request[0]);
-
-      sendCommand(request, n, buffer, 6);
-
-      sprintf(str, "%02x%02x", buffer[4], buffer[5]);
-      val0 = atoi(str);
-
-      if (val0 <= 120) { // 120 = S9 = 9 * (40/3)
-        val1 = val0 / (40 / 3.0f);
-      } else { // 240 = S9 + 60
-        val1 = (val0 - 120) / 2.0f;
-      }
-
-      if (abs(val0 - val2) > 1 || reset == true) {
-        val2 = val0;
-        reset = false;
-
-        if (val0 <= 13) {
-          angle = 42.50f;
-          valString = "S " + String(int(round(val1)));
-        } else if (val0 <= 120) {
-          angle = mapFloat(val0, 14, 120, 42.50f, -6.50f); // SMeter image start at S1 so S0 is out of image on the left...
-          valString = "S " + String(int(round(val1)));
-        } else {
-          angle = mapFloat(val0, 121, 241, -6.50f, -43.0f);
-          if (int(round(val1) < 10))
-            valString = "S 9 + 0" + String(int(round(val1))) + " dB";
-          else
-            valString = "S 9 + " + String(int(round(val1))) + " dB";
-        }
-
-        // Debug trace
-        #if DEBUG==1
-          Serial.print("Get S");
-          Serial.print(val0);
-          Serial.print(" ");
-          Serial.print(val1);
-          Serial.print(" ");
-          Serial.println(angle);
-        #endif
-
-        Needle::set( angle );
-        Measure::setPrimaryValue( valString );
-
-        // If led strip...
-        /*
-        uint8_t limit = map(val0, 0, 241, 0, NUM_LEDS_STRIP);
-
-        for (uint8_t i = 0; i < limit; i++)
-        {
-          if (i < NUM_LEDS_STRIP / 2)
-          {
-            strip[i] = CRGB::Blue;
+        if ( message && UI::canDrawUI() ) {
+          static bool active_state = false;
+          bool state = (millis()/773)%2==0;
+          if( active_state != state ) {
+            CSS::drawStyledString( &tft, state ? message : "", 160, 180, Theme::H3FontStyle );
+            active_state = state;
           }
-          else
-          {
-            strip[i] = CRGB::Red;
-          }
-        }
-
-        for (uint8_t i = limit; i < NUM_LEDS_STRIP; i++)
-        {
-          strip[i] = CRGB::White;
-        }
-        FastLED.show();
-        */
-      }
-    }
-
-
-    void setSWR()
-    {
-      String valString;
-
-      static char buffer[6];
-      char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x15, 0x12, 0xFD};
-      char str[2];
-
-      uint8_t val0 = 0;
-      float_t val1 = 0;
-      static uint8_t val3 = 0;
-
-      float_t angle = 0;
-
-      size_t n = sizeof(request) / sizeof(request[0]);
-
-      sendCommand(request, n, buffer, 6);
-
-      sprintf(str, "%02x%02x", buffer[4], buffer[5]);
-      val0 = atoi(str);
-
-      if (val0 != val3 || reset == true) {
-        val3 = val0;
-        reset = false;
-
-        if (val0 <= 48) {
-          angle = mapFloat(val0, 0, 48, 42.50f, 32.50f);
-          val1 = mapFloat(val0, 0, 48, 1.0, 1.5);
-        } else if (val0 <= 80) {
-          angle = mapFloat(val0, 49, 80, 32.50f, 24.0f);
-          val1 = mapFloat(val0, 49, 80, 1.5, 2.0);
-        } else if (val0 <= 120) {
-          angle = mapFloat(val0, 81, 120, 24.0f, 10.0f);
-          val1 = mapFloat(val0, 81, 120, 2.0, 3.0);
-        } else if (val0 <= 155) {
-          angle = mapFloat(val0, 121, 155, 10.0f, 0.0f);
-          val1 = mapFloat(val0, 121, 155, 3.0, 4.0);
-        } else if (val0 <= 175) {
-          angle = mapFloat(val0, 156, 175, 0.0f, -7.0f);
-          val1 = mapFloat(val0, 156, 175, 4.0, 5.0);
-        } else if (val0 <= 225) {
-          angle = mapFloat(val0, 176, 225, -7.0f, -19.0f);
-          val1 = mapFloat(val0, 176, 225, 5.0, 10.0);
-        } else {
-          angle = mapFloat(val0, 226, 255, -19.0f, -30.50f);
-          val1 = mapFloat(val0, 226, 255, 10.0, 50.0);
-        }
-
-        valString = "SWR " + String(val1);
-
-        // Debug trace
-        #if DEBUG==1
-          Serial.print("Get SWR");
-          Serial.print(val0);
-          Serial.print(" ");
-          Serial.print(val1);
-          Serial.print(" ");
-          Serial.println(angle);
-        #endif
-
-        Needle::set( angle );
-        Measure::setPrimaryValue( valString );
-
-      }
-
-    }
-
-
-    void setPower()
-    {
-      String valString;
-
-      static char buffer[6];
-      char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x15, 0x11, 0xFD};
-      char str[2];
-
-      uint8_t val0 = 0;
-      float_t val1 = 0;
-      float_t val2 = 0;
-      static uint8_t val3 = 0;
-
-      float_t angle = 0;
-
-      size_t n = sizeof(request) / sizeof(request[0]);
-
-      sendCommand(request, n, buffer, 6);
-
-      sprintf(str, "%02x%02x", buffer[4], buffer[5]);
-      val0 = atoi(str);
-
-      if (val0 != val3 || reset == true) {
-        val3 = val0;
-        reset = false;
-
-        if (val0 <= 27) {
-          angle = mapFloat(val0, 0, 27, 42.50f, 30.50f);
-          val1 = mapFloat(val0, 0, 27, 0, 0.5);
-        } else if (val0 <= 49) {
-          angle = mapFloat(val0, 28, 49, 30.50f, 23.50f);
-          val1 = mapFloat(val0, 28, 49, 0.5, 1.0);
-        } else if (val0 <= 78) {
-          angle = mapFloat(val0, 50, 78, 23.50f, 14.50f);
-          val1 = mapFloat(val0, 50, 78, 1.0, 2.0);
-        } else if (val0 <= 104) {
-          angle = mapFloat(val0, 79, 104, 14.50f, 6.30f);
-          val1 = mapFloat(val0, 79, 104, 2.0, 3.0);
-        } else if (val0 <= 143) {
-          angle = mapFloat(val0, 105, 143, 6.30f, -6.50f);
-          val1 = mapFloat(val0, 105, 143, 3.0, 5.0);
-        } else if (val0 <= 175) {
-          angle = mapFloat(val0, 144, 175, -6.50f, -17.50f);
-          val1 = mapFloat(val0, 144, 175, 5.0, 7.0);
-        } else {
-          angle = mapFloat(val0, 176, 226, -17.50f, -30.50f);
-          val1 = mapFloat(val0, 176, 226, 7.0, 10.0);
-        }
-
-        val2 = round(val1 * 10);
-        if (IC_MODEL == 705)
-          valString = "PWR " + String((val2 / 10)) + " W";
-        else
-          valString = "PWR " + String(val2) + " W";
-
-        // Debug trace
-        #if DEBUG==1
-          Serial.print("Get PWR");
-          Serial.print(val0);
-          Serial.print(" ");
-          Serial.print(val1);
-          Serial.print(" ");
-          Serial.println(angle);
-        #endif
-
-        Needle::set( angle );
-        Measure::setPrimaryValue( valString );
-
-
-      }
-    }
-
-
-    void setDataMode()
-    {
-      static char buffer[6];
-      char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x1A, 0x06, 0xFD};
-
-      size_t n = sizeof(request) / sizeof(request[0]);
-
-      sendCommand(request, n, buffer, 6);
-
-      DataMode::mode = buffer[4];
-    }
-
-
-    void setFrequency()
-    {
-      char buffer[8];
-      const char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x03, 0xFD};
-
-      double freq; // Current frequency in Hz
-      const uint32_t decMulti[] = {1000000000, 100000000, 10000000, 1000000, 100000, 10000, 1000, 100, 10, 1};
-
-      //uint8_t lenght = 0;
-
-      size_t n = sizeof(request) / sizeof(request[0]);
-
-      sendCommand((char*)request, n, buffer, 8);
-
-      freq = 0;
-      for (uint8_t i = 2; i < 7; i++) {
-        freq += (buffer[9 - i] >> 4) * decMulti[(i - 2) * 2];
-        freq += (buffer[9 - i] & 0x0F) * decMulti[(i - 2) * 2 + 1];
-      }
-
-      if (Transverter::get() > 0) {
-        freq += double(Transverter::choices[Transverter::get()]);
-      }
-
-      if( freq != 0 ) {
-        char measure_value_str[17];
-        format_number( freq, 16, measure_value_str, '.' );
-        Measure::setSecondaryValue( measure_value_str );
-      } else {
-        Measure::setSecondaryValue("-");
-      }
-    }
-
-
-    void setMode()
-    {
-      String valString;
-
-      static char buffer[5];
-      const char request[] = {0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x04, 0xFD};
-
-      const char *mode[] = {"LSB", "USB", "AM", "CW", "RTTY", "FM", "WFM", "CW-R", "RTTY-R", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "DV"};
-
-      size_t n = sizeof(request) / sizeof(request[0]);
-
-      sendCommand((char*)request, n, buffer, 5);
-
-      valString = "FIL" + String(uint8_t(buffer[4]));
-      DataMode::setFilter( valString );
-
-      valString = String(mode[(uint8_t)buffer[3]]);
-
-      setDataMode(); // query CIV: is data ON or OFF ?
-
-      if (DataMode::mode == 1) {
-        valString += "-D";
-      }
-      DataMode::setMode( valString );
-    }
-
-
-
-
-
-
-    namespace screenshot
-    {
-
-      bool M5Screen24bmp()
-      {
-        uint16_t image_height = tft.height();
-        uint16_t image_width = tft.width();
-        const uint16_t pad = (4 - (3 * image_width) % 4) % 4;
-        uint32_t filesize = 54 + (3 * image_width + pad) * image_height;
-        unsigned char swap;
-        unsigned char line_data[image_width * 3 + pad];
-        unsigned char header[54] = {
-            'B', 'M',    // BMP signature (Windows 3.1x, 95, NT, …)
-            0, 0, 0, 0,  // Image file size in bytes
-            0, 0, 0, 0,  // Reserved
-            54, 0, 0, 0, // Start of pixel array
-            40, 0, 0, 0, // Info header size
-            0, 0, 0, 0,  // Image width
-            0, 0, 0, 0,  // Image height
-            1, 0,        // Number of color planes
-            24, 0,       // Bits per pixel
-            0, 0, 0, 0,  // Compression
-            0, 0, 0, 0,  // Image size (can be 0 for uncompressed images)
-            0, 0, 0, 0,  // Horizontal resolution (dpm)
-            0, 0, 0, 0,  // Vertical resolution (dpm)
-            0, 0, 0, 0,  // Colors in color table (0 = none)
-            0, 0, 0, 0}; // Important color count (0 = all colors are important)
-
-        // Fill filesize, width and heigth in the header array
-        for (uint8_t i = 0; i < 4; i++) {
-          header[2 + i] = (char)((filesize >> (8 * i)) & 255);
-          header[18 + i] = (char)((image_width >> (8 * i)) & 255);
-          header[22 + i] = (char)((image_height >> (8 * i)) & 255);
-        }
-
-        // Write the header to the file
-        webClient.write(header, 54);
-
-        // To keep the required memory low, the image is captured line by line, initialize padded pixel with 0
-        for (uint16_t i = (image_width - 1) * 3; i < (image_width * 3 + pad); i++) {
-          line_data[i] = 0;
-        }
-        // The coordinate origin of a BMP image is at the bottom left. therefore, the image must be read from bottom to top.
-        for (uint16_t y = image_height; y > 0; y--) {
-          // Get one line of the screen content
-          tft.readRectRGB(0, y - 1, image_width, 1, line_data);
-          // BMP color order is: Blue, Green, Red
-          // Return values from readRectRGB is: Red, Green, Blue
-          // Therefore: R und B need to be swapped
-          for (uint16_t x = 0; x < image_width; x++) {
-            swap = line_data[x * 3];
-            line_data[x * 3] = line_data[x * 3 + 2];
-            line_data[x * 3 + 2] = swap;
-          }
-          // Write the line to the file
-          webClient.write(line_data, (image_width * 3) + pad);
+          return false;
         }
         return true;
       }
 
 
-      // Get screenshot
-      void check()
+      void clearData() // lost in refactoring
       {
-        unsigned long timeout_millis = millis() + 3000;
-        String currentLine = "";
+        Needle::reset();
+        Measure::reset();
+        Battery::reset();
+      }
 
-        if (WiFi.status() == WL_CONNECTED) {
-          webClient = httpServer.available();
-          // webClient.setNoDelay(1);
-          if (webClient) {
-            // Force a disconnect after 3 seconds
-            // Serial.println("New Client.");
-            while (webClient.connected()) { // Loop while the client's connected
-              if (millis() > timeout_millis) { // If the client is still connected after 3 seconds, something is wrong. So kill the connection
-                // Serial.println("Force Client stop!");
-                webClient.stop();
-              }
-              // If there's bytes to read from the client,
-              if (webClient.available()) {
-                char c = webClient.read();
-                Serial.write(c);
-                // If the byte is a newline character
-                if (c == '\n') {
-                  // Two newline characters in a row (empty line) are indicating the end of the client HTTP request, so send a response:
-                  if (currentLine.length() == 0) {
-                    // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK) and a content-type so the client knows what's coming, then a blank line, followed by the content:
-                    ScreenSaver::reset(); // Screensaver update !!!
 
-                    switch (htmlGetRequest) {
-                      case GET_index_page:
-                        {
-                          webClient.println("HTTP/1.1 200 OK");
-                          webClient.println("Content-type:text/html");
-                          webClient.println();
-                          if (M5.getBoard() == m5::board_t::board_M5Stack) {
-                            webClient.write_P(index_m5stack_html, sizeof(index_m5stack_html));
-                          } else if (M5.getBoard() == m5::board_t::board_M5StackCore2) {
-                            webClient.write_P(index_core2_html, sizeof(index_core2_html));
-                          }
-                          break;
-                        }
-                      case GET_screenshot:
-                        {
-                          webClient.println("HTTP/1.1 200 OK");
-                          webClient.println("Content-type:image/bmp");
-                          webClient.println();
-                          takeLcdMux(); // wait for UI to finish drawing
-                          M5Screen24bmp();
-                          giveLcdMux(); // resume normal UI operations
-                          vTaskDelay(1000);
-                          break;
-                        }
-                      default:
-                        webClient.println("HTTP/1.1 404 Not Found");
-                        webClient.println("Content-type:text/html");
-                        webClient.println();
-                        webClient.print("404 Page not found.<br>");
-                        break;
-                    }
-                    // The HTTP response ends with another blank line:
-                    // webClient.println();
-                    // Break out of the while loop:
-                    break;
-
-                  } else { // if a newline is found
-                    // Analyze the currentLine:
-                    if (currentLine.startsWith("GET /")) { // Detect the specific GET requests:
-                      htmlGetRequest = GET_unknown;
-
-                      if (currentLine.startsWith("GET / ")) { // If no specific target is requested
-                        htmlGetRequest = GET_index_page;
-                      }
-
-                      if (currentLine.startsWith("GET /screenshot.bmp")) { // If the screenshot image is requested
-                        htmlGetRequest = GET_screenshot;
-                      }
-
-                      if (currentLine.startsWith("GET /buttonLeft")) { // If the button left was pressed on the HTML page
-                        buttonLeftPressed = true;
-                        htmlGetRequest = GET_index_page;
-                      }
-
-                      if (currentLine.startsWith("GET /buttonCenter")) { // If the button center was pressed on the HTML page
-                        buttonCenterPressed = true;
-                        htmlGetRequest = GET_index_page;
-                      }
-
-                      if (currentLine.startsWith("GET /buttonRight")) { // If the button right was pressed on the HTML page
-                        buttonRightPressed = true;
-                        htmlGetRequest = GET_index_page;
-                      }
-                    }
-                    currentLine = "";
-                  }
-                } else if (c != '\r') { // Add anything else than a carriage return character to the currentLine
-                  currentLine += c;
-                }
-              }
-            }
-
-            webClient.stop(); // Close the connection
-            // Serial.println("Client Disconnected.");
-            vTaskDelay(100);
-          }
+      void ICScan() // called from main loop
+      {
+        setMode();
+        setFrequency();
+        switch (Measure::value) {
+          case 0: setPower();  break;
+          case 1: setSmeter(); break;
+          case 2: setSWR();    break;
+          default: /* duh? */  break;
         }
       }
 
-    }
+
+      bool dispatchCommand(char *request, size_t n, char *buffer, uint8_t limit) // CI-V Command dispatcher
+      {
+        if ( hasBluetooth() ) return bluetooth::sendCommand(request, n, buffer, limit);
+        else if( !proxy::available() ) return false;
+        return wifi::sendCommand(request, n, buffer, limit);
+      }
+
+
+      void setSmeter()
+      {
+        CIV::GaugeMeasure_t GaugeMeasure = CIV::getSmeter();
+        if( GaugeMeasure.label != "" ) {
+          Needle::set( GaugeMeasure.angle );
+          Measure::setPrimaryValue( GaugeMeasure.label );
+        }
+      }
+
+
+      void setSWR()
+      {
+        CIV::GaugeMeasure_t GaugeMeasure = CIV::getSWR();
+        if( GaugeMeasure.label != "" ) {
+          Needle::set( GaugeMeasure.angle );
+          Measure::setPrimaryValue( GaugeMeasure.label );
+        }
+      }
+
+
+      void setPower()
+      {
+        CIV::GaugeMeasure_t GaugeMeasure = CIV::getPower();
+        if( GaugeMeasure.label != "" ) {
+          Needle::set( GaugeMeasure.angle );
+          Measure::setPrimaryValue( GaugeMeasure.label );
+        }
+      }
+
+
+      void setDataMode()
+      {
+        DataMode::mode = CIV::getDataMode();
+      }
+
+
+      void setFrequency()
+      {
+        Measure::setSecondaryValue( CIV::getFrequency() );
+      }
+
+
+      void setMode()
+      {
+        CIV::FilterMode_t FilterMode = CIV::getMode();
+        DataMode::setFilter( FilterMode.filter );
+        DataMode::setMode( FilterMode.mode );
+      }
+
+
+      // some boolean verbs for user settings specifics
+
+      bool hasBluetooth()
+      {
+        return IC_MODEL == 705 && IC_CONNECT == BT;
+      }
+
+      bool needsPairing()
+      {
+        return (hasBluetooth() && !bluetooth::available());
+      }
+
+      bool needsWiFiChecked()
+      {
+        return (IC_CONNECT == USB && !wifi::available());
+      }
+
+      bool needsProxyChecked()
+      {
+        return (IC_CONNECT == USB && (proxy::available() || !proxy::connected()));
+      }
+
+      bool canSleep()
+      {
+        return ( ScreenSaver::wakeup && proxy::available() ) // tft must be awake to go to sleep
+            && ( ( IC_CONNECT == BT && !bluetooth::available()) || ( IC_CONNECT == USB && !proxy::connected() ) );
+      }
+
+      bool canWakeup()
+      {
+        return ( !ScreenSaver::wakeup && proxy::available() ) // tft must be asleep to wake
+            && ( ( IC_CONNECT == BT && bluetooth::available() ) || ( IC_CONNECT == USB && !proxy::connected() ) );
+      }
+
+
+    };
 
   };
 

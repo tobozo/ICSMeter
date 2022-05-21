@@ -1,5 +1,4 @@
 
-
 namespace ICSMeter
 {
 
@@ -14,6 +13,7 @@ namespace ICSMeter
       const String ICText = String(IC_MODEL) + String(IC_CONNECT == BT ? " BT" : " USB");
       const uint8_t battery_min_level = 0;
       const uint8_t battery_max_level = 100;
+
 
       int8_t getLevel(bool type) // Get Battery level
       {
@@ -57,10 +57,12 @@ namespace ICSMeter
 
         int16_t x = 294, y = 4, w=20, h=12;
 
-        if( rawLevel>=0 ) {
+        if( rawLevel>=0 ) { // battery level available, fill battery
+
           tft.drawRect(x, y, w, h, Theme::layout->fgcolor);
           tft.fillRect(x+2, y+2, batteryLevel, 8, Theme::layout->fgcolor);
-        } else {
+
+        } else { // no battery level available, draw "broken" battery icon
 
           const int16_t crackwidth = 4; // px
           const int16_t xoffset    = 5; // horizontal offset, changes the angle

@@ -1,7 +1,6 @@
-
-
 #include "../Widgets.hpp"
-
+#include "../Themes/Themes.hpp"
+#include "../../core/ICSMeter.hpp"
 
 namespace ICSMeter
 {
@@ -12,8 +11,9 @@ namespace ICSMeter
     namespace Settings
     {
 
-      using namespace modules;
-      using namespace CSS;
+      using namespace Utils;
+      using namespace modules::buttons;
+      using namespace Theme;
 
       uint32_t menu_delay = 150; // variable typematic button rate
       bool setting_selected = false;
@@ -29,7 +29,7 @@ namespace ICSMeter
       const uint32_t rulerTitleYpos = y + 36;
       const uint32_t rulerValueYpos = y + (h - 24);
 
-      const TextStyle_t SettingsStyle =
+      const CSS::TextStyle_t SettingsStyle =
       {
         .fgColor   = SettingsMenuLightColor,
         .bgColor   = SettingsMenuBgColor,
@@ -38,10 +38,10 @@ namespace ICSMeter
         .paddingX  =  w - 2
       };
 
-      const FontStyle_t H1FontStyle = { &YELLOWCRE8pt7b, &SettingsStyle, TRANSPARENT };
-      const FontStyle_t H2FontStyle = { &Font0,          &SettingsStyle, TRANSPARENT };
-      const FontStyle_t ULFontStyle = { &YELLOWCRE8pt7b, &SettingsStyle, OPAQUE };
-      const FontStyle_t LIFontStyle = { &tahoma8pt7b,    &SettingsStyle, OPAQUE };
+      const CSS::FontStyle_t H1FontStyle = { &YELLOWCRE8pt7b, &SettingsStyle, CSS::TRANSPARENT };
+      const CSS::FontStyle_t H2FontStyle = { &Font0,          &SettingsStyle, CSS::TRANSPARENT };
+      const CSS::FontStyle_t ULFontStyle = { &YELLOWCRE8pt7b, &SettingsStyle, CSS::OPAQUE };
+      const CSS::FontStyle_t LIFontStyle = { &tahoma8pt7b,    &SettingsStyle, CSS::OPAQUE };
 
       typedef void (*settings_callback_t)();
       struct settings_handler_t
@@ -80,6 +80,8 @@ namespace ICSMeter
 
       void setMenuDelay( uint32_t delay )
       {
+        using namespace modules;
+
         menu_delay = delay;
         Beeper::beepPause = delay/2;
       }
@@ -108,7 +110,6 @@ namespace ICSMeter
         if( !dialog_enabled ) { // exiting settings menu
           exitSettingsMenu();
         }
-
       }
 
 
@@ -132,8 +133,7 @@ namespace ICSMeter
 
       void exitSettingsMenu()
       {
-        //clearData();
-        setMenuDelay( 500 );
+        setMenuDelay( 300 );
         setting_selected = false;
         dialog_enabled   = false;
         UI::drawWidgets( true );
@@ -160,7 +160,7 @@ namespace ICSMeter
 
       void handleBrowsing()
       {
-        setMenuDelay( 500 );
+        setMenuDelay( 300 );
 
         if(btnB) {
           setting_selected = !setting_selected;
@@ -248,6 +248,8 @@ namespace ICSMeter
 
       void onAdjustBrightness()
       {
+        using namespace modules;
+
         setMenuDelay( 300 );
 
         if(btnA) {
@@ -265,7 +267,7 @@ namespace ICSMeter
         }
 
         char textbox[20];
-        snprintf( textbox, 19, "%s %d%s", BackLight::label, BackLight::brightness, "%" );
+        snprintf( textbox, 19, "%s %d%s", BackLight::label, BackLight::getBrightness(), "%" );
         CSS::drawStyledString( &tft, textbox, hmiddle, titleYpos, &ULFontStyle );
       }
 
@@ -306,6 +308,8 @@ namespace ICSMeter
 
       void onAdjustBeepVolume()
       {
+        using namespace modules;
+
         setMenuDelay( 300 );
 
         if(btnA || btnC) {
@@ -387,30 +391,21 @@ namespace ICSMeter
         CSS::drawStyledString( &tft, SETTINGS_LABEL, hmiddle, 14 + y, &H1FontStyle );
         CSS::drawStyledString( &tft, APP_TITLE,      hmiddle, 28 + y, &H2FontStyle );
 
-        //tft.drawFastHLine(120, 3, 80, Theme::layout->bgcolor);
         tft.drawFastHLine( x + 1, rulerTitleYpos, w-2, SettingsMenuLightColor ); // <hr> between title and settings list
         tft.drawFastHLine( x + 1, rulerValueYpos, w-2, SettingsMenuLightColor ); // <hr> between settings list and setting value
-
-      //const uint32_t rulerTitleYpos = 36 + y;
-      //const uint32_t rulerValueYpos = (y + h) - 24;
-
       }
 
 
       void drawOptions()
       {
         uint8_t firstIndex = 0;
-        //uint8_t i, j;
 
         // pagination
         if(choice > MAX_ITEMS_IN_SETTINGS_MENU-1) {
           firstIndex = choice - (MAX_ITEMS_IN_SETTINGS_MENU-1);
-        } else {
-          firstIndex = 0;
         }
 
         size_t lastIndex = firstIndex + MAX_ITEMS_IN_SETTINGS_MENU;
-        //j = 0;
 
         CSS::setFontStyle( &tft, &LIFontStyle );
         uint32_t itemHeight  = (tft.fontHeight()+2);
@@ -435,7 +430,6 @@ namespace ICSMeter
           if(j > MAX_ITEMS_IN_SETTINGS_MENU) j = MAX_ITEMS_IN_SETTINGS_MENU;
         }
       }
-
 
 
     };

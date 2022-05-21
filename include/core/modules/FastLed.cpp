@@ -1,6 +1,4 @@
-#pragma once
-
-#include "../core/ICSMeter.hpp"
+#include "../ICSMeter.hpp"
 
 namespace ICSMeter
 {
@@ -45,7 +43,6 @@ namespace ICSMeter
         FastLED.setBrightness(16);
         FastLED.show();
       }
-
 
     };
 
