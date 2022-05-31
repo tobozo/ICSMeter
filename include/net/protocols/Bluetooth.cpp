@@ -14,6 +14,7 @@ namespace ICSMeter
     {
 
       using namespace daemon;
+      using namespace UI;
 
       constexpr const char * ERR_BT_INIT = "An error occurred initializing Bluetooth";
       constexpr const char * MSG_BT_INIT = "Bluetooth initialized";
@@ -85,7 +86,7 @@ namespace ICSMeter
           }
           proxy::setFlag( PROXY_ONLINE ); // probably not necessary
         }
-        return online;
+        return proxy::available();
         // Serial.println(" Ok");
       }
 
@@ -99,10 +100,13 @@ namespace ICSMeter
           Serial.println( MSG_BT_CONNECTED );
         }
         if (event == ESP_SPP_CLOSE_EVT) {
-          tft.sleep();
-          ScreenSaver::wakeup = false;
-          connected = false;
+          proxy::setFlag( TX_OFFLINE );
+          ScreenSaver::sleep();
+          // tft.sleep();
+          // ScreenSaver::wakeup = false;
+          // connected = false;
           Serial.println( MSG_BT_DISCONNECTED );
+
         }
       }
 
