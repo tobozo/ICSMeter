@@ -1,4 +1,4 @@
-#include "../Controls.hpp"
+#include "../Daemon.hpp"
 
 #if IC_CONNECT==BT && IC_MODEL==705
 

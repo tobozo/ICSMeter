@@ -1,4 +1,4 @@
-#include "Controls.hpp"
+#include "Daemon.hpp"
 #include "../Utils/Maths.hpp"
 #include "../UI/UI.hpp"
 #include "../UI/Widgets.hpp"
@@ -19,6 +19,9 @@ namespace ICSMeter
 
       constexpr const char* MSG_NEEDPAIRING = "Need Pairing";
       constexpr const char* MSG_CHECKWIFI   = "Check Wifi";
+      uint32_t tx_poll_frequency = 1000; // milliseconds between each ICScan()
+      uint32_t tx_last_poll      = millis();
+      static uint8_t tx = 0;
 
 
       void setup()
@@ -39,11 +42,12 @@ namespace ICSMeter
 
         if( daemon::connected() ) {
 
-          uint8_t tx = CIV::getTX(); // check connection health, retrieve last status
-          if(tx != 0) ScreenSaver::resetTimer(); // If transmit, refresh tempo
-          daemon::ICScan();
-          FastLed::set( tx );
-          UI::drawWidgets();
+          if(tx != 0) {
+            ScreenSaver::resetTimer(); // If transmit, refresh tempo
+            FastLed::set( tx );
+            UI::drawWidgets();
+            tx = 0;
+          }
 
         } else {
 
@@ -73,7 +77,7 @@ namespace ICSMeter
         for (;;) {
 
           screenshot::check(); // check for queued screenshot request
-          daemon::check();
+          daemon::check(); // check for wifi/ble/proxy health
 
           vTaskDelay( 10 );
         }
@@ -90,10 +94,18 @@ namespace ICSMeter
           if( ScreenSaver::isAwake() ) {
             message = proxy::checkStatus();
           } else {
-            message = proxy::MSG_CHECKTX;
+            message = proxy::MSG_CHECKTX; // won't be displayed but error state needs to be maintained
           }
         } else {
           message = nullptr;
+          if( tx_last_poll + tx_poll_frequency < millis() ) {
+            tx = CIV::getTX();
+            if(tx != 0) {
+              proxy::last_check = millis();
+              daemon::ICScan(); // query all statuses
+            }
+            tx_last_poll = millis();
+          }
         }
       }
 

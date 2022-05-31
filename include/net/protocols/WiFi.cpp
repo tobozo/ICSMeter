@@ -1,4 +1,4 @@
-#include "../Controls.hpp"
+#include "../Daemon.hpp"
 
 namespace ICSMeter
 {
@@ -15,22 +15,120 @@ namespace ICSMeter
 
       constexpr const char* MSG_WIFI_UP   = "Wifi Client Connected";
       constexpr const char* MSG_WIFI_DOWN = "Wifi Client disconnected";
+      char wifi_ssid[33];
+      char wifi_pass[64];
 
       const uint32_t max_reconnect_attempts = 10;
       uint32_t connect_attempts = 0;
       bool connected = false;
+      bool has_credentials = ( strcmp( WIFI_SSID, "YOUR WIFI SSID" )!=0 && strcmp( WIFI_PASSWORD, "YOUR WIFI PASSWORD" )!=0 );
+      bool setup_done = false;
 
 
       void setup()
       {
-        WiFi.onEvent(WiFiEvent);
-        if( strcmp( WIFI_SSID, "YOUR WIFI SSID" )==0 || strcmp( WIFI_SSID, "YOUR WIFI PASSWORD" )==0 ) {
+        if( !setup_done ) {
+          if( !has_credentials ) {
+            if( loadCredentials( wifi_ssid, wifi_pass ) ) {
+              // got some ssid/pass from NVS
+              log_d("Loaded WiFi credentials from NVS");
+            } else {
+              log_w("No WiFi credentials found either in settings.h or in NVS");
+            }
+          } else {
+            // got some ssid/pass from the settings.h, see if they need persistence
+            if( saveCredentials( WIFI_SSID, WIFI_PASSWORD ) ) {
+              log_d("Successfully saved WiFi credentials");
+            } else {
+              log_d("WiFi credentials are both in settings.h and NVS");
+            }
+            loadCredentials( wifi_ssid, wifi_pass );
+          }
+          WiFi.onEvent( WiFiEvent ); // attach event manager
+          setup_done = true;
+        }
+        begin();
+      }
+
+
+      void begin()
+      {
+        if( ! has_credentials ) {
+          log_i("Logging WiFi without credentials");
           WiFi.begin();
-          log_d("No credentials provided in settings.h, using previously saved tokens, if any...");
+          //log_d("No credentials provided in settings.h, using previously saved tokens, if any...");
         } else {
-          WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+          log_d("Logging WiFi with credentials: %s / %s", wifi_ssid, wifi_pass );
+          WiFi.begin( wifi_ssid, wifi_pass );
         }
       }
+
+
+      bool loadCredentials( char* dst_wifi_ssid, char* dst_wifi_pass )
+      {
+        char ssid[33];
+        char pass[64];
+        size_t s1, s2;
+
+        s1 = prefs::getString( "wifi.ssid", ssid, 32 );
+        s2 = prefs::getString( "wifi.pass", pass, 63 );
+
+        bool res = s1+s2 > 0;
+
+        if( res ) { // overwrite defauts if values found in prefs
+          // populate if needed
+          if( dst_wifi_ssid ) snprintf( dst_wifi_ssid, 32, "%s", ssid );
+          if( dst_wifi_pass ) snprintf( dst_wifi_pass, 63, "%s", pass );
+          has_credentials = true;
+        }
+        return res;
+      }
+
+
+      bool saveSSID( const char* new_ssid )
+      {
+        if( !new_ssid || strlen(new_ssid)== 0 ) {
+          log_e("Can't save empty ssid!");
+          return false;
+        }
+        char ssid[33];
+        size_t s = prefs::getString( "wifi.ssid", ssid, 32 );
+        if( s>0 && strcmp(ssid, new_ssid)==0 ) {
+          log_d("Ignoring save as source and destination are similar");
+          return false; // unchanged/empty
+        }
+        prefs::setString( "wifi.ssid", new_ssid );
+        log_i("Saved SSID");
+        return true;
+      }
+
+
+      bool savePass( const char* new_pass )
+      {
+        if( !new_pass || strlen(new_pass)== 0 ) {
+          log_e("Can't save empty pass!");
+          return false;
+        }
+        char pass[64];
+        size_t s = prefs::getString( "wifi.pass", pass, 63 );
+        if( s>0 && strcmp(pass, new_pass)== 0 ) {
+          log_d("Ignoring save as source and destination are similar");
+          return false; // unchanged/empty
+        }
+        prefs::setString( "wifi.pass", new_pass );
+        log_i("Saved Pass");
+        return true;
+      }
+
+
+      bool saveCredentials( const char* new_ssid, const char* new_pass )
+      {
+        bool ret1 = saveSSID( new_ssid );
+        bool ret2 = savePass( new_pass );
+
+        return ret1 || ret2;
+      }
+
 
 
       bool available()
@@ -50,9 +148,9 @@ namespace ICSMeter
 
         HTTPClient http;
 
-        http.setTimeout(1);          // HTTPClient.h => setTimeout(uint16_t timeout) set the timeout (seconds) for the incoming connection
-        http.setConnectTimeout(300); // HTTPClient.h => setConnectTimeout(int32_t connectTimeout) set the timeout (milliseconds) outgoing connection
-        civClient.setTimeout( 1 );   // WiFiClient.h => setTimeout(uint32_t seconds) set the timeout for the client waiting for incoming data
+        http.setTimeout(1);           // HTTPClient.h => setTimeout(uint16_t timeout) set the timeout (seconds) for the incoming connection
+        http.setConnectTimeout(1000); // HTTPClient.h => setConnectTimeout(int32_t connectTimeout) set the timeout (milliseconds) outgoing connection
+        civClient.setTimeout( 1 );    // WiFiClient.h => setTimeout(uint32_t seconds) set the timeout for the client waiting for incoming data
 
         String command = "";
         char hexStr[4];
@@ -98,12 +196,18 @@ namespace ICSMeter
             #endif
           }
         } else {
-          log_d("awww this proxy is not doing well :-(");
-          errors_count++;
-          if (errors_count > max_errors) {
+
+          String response = http.getString(); // Get data
+
+          if( httpCode == 404 ) {
+            log_d("awww this proxy is not doing well (HTTP Error Code: %d, response: %s", httpCode, response.c_str() );
+            proxy::setFlag( PROXY_ONLINE );
             proxy::setFlag( TX_OFFLINE );
+          } else {
+            // http timeout ?
             proxy::setFlag( PROXY_OFFLINE );
           }
+          errors_count++;
         }
         http.end(); // Free the resources
         return ret;
@@ -131,8 +235,12 @@ namespace ICSMeter
           case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
             Serial.println( MSG_WIFI_DOWN );
             connected = false;
-            if( ++connect_attempts <= max_reconnect_attempts ) { // TODO: reset connect_attempts from settings
-              setup();
+            WiFi.reconnect();
+            if( ++connect_attempts >= max_reconnect_attempts ) { // TODO: reset connect_attempts from settings
+              WiFi.disconnect( true );
+              begin();
+              WiFi.scanNetworks();
+              connect_attempts = 0;
             }
           break;
           default: break;

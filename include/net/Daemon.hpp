@@ -8,7 +8,6 @@ namespace ICSMeter
   namespace net
   {
 
-    static const char *message = nullptr; // connection message
     constexpr const char* USER_AGENT = "M5Stack";
 
 
@@ -37,6 +36,8 @@ namespace ICSMeter
       void setMode();      // filter and mode
 
       void clearData();
+
+      static const char *message = "Connecting"; // connection message
     };
 
 
@@ -82,7 +83,12 @@ namespace ICSMeter
     namespace wifi
     {
       void setup();
+      void begin();
       bool available();
+      bool saveSSID( const char* new_ssid );
+      bool savePass( const char* new_pass );
+      bool saveCredentials( const char* new_wifi_ssid, const char* new_wifi_pass );
+      bool loadCredentials( char* dest_wifi_ssid, char* dest_wifi_pass );
       void WiFiEvent(WiFiEvent_t event);
       bool sendCommand(char *request, size_t n, char *buffer, uint8_t limit);
     };

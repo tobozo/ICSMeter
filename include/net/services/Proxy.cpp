@@ -1,4 +1,4 @@
-#include "../Controls.hpp"
+#include "../Daemon.hpp"
 
 namespace ICSMeter
 {
@@ -21,6 +21,7 @@ namespace ICSMeter
       uint32_t last_check = millis();
       bool online = false;
       bool txConnected = false;
+      bool had_success = false;
 
       void setup()
       {
@@ -45,7 +46,7 @@ namespace ICSMeter
         switch( flag ) {
           case PROXY_ONLINE:  online = true;       break;
           case PROXY_OFFLINE: online = false;      break;
-          case TX_ONLINE:     txConnected = true;  break;
+          case TX_ONLINE:     txConnected = true;  had_success = true; break;
           case TX_OFFLINE:    txConnected = false; break;
         }
       }

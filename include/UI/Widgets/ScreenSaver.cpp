@@ -104,7 +104,7 @@ namespace ICSMeter
       bool shouldSleep() // sleep signal comes either from IC being turned off (depends on proxy) or by timer
       {
         if( ScreenSaver::isAsleep() ) return false; // already sleeping
-        if( ScreenSaver::isAwake() && proxy::available() // tft must be awake to go to sleep
+        if( ScreenSaver::isAwake() && proxy::available() && proxy::had_success // tft must be awake to go to sleep
             && ( ( IC_CONNECT == BT && !bluetooth::available()) || ( IC_CONNECT == USB && !proxy::connected() ) ) ) return true;
         uint32_t elapsed = millis() - timer; // elapsed time since last timer reset
         return elapsed > milliseconds_countdown*2;

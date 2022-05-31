@@ -1,7 +1,7 @@
 #include "../../assets/index_html.hpp"
 #include "../../assets/images.hpp"
 #include "../../UI/Themes/Themes.hpp"
-#include "../Controls.hpp"
+#include "../Daemon.hpp"
 
 namespace ICSMeter
 {

@@ -14,7 +14,7 @@
 #include "../net/protocols/CI-V.cpp"
 #include "../net/services/Screenshots.cpp"
 #include "../net/services/Proxy.cpp"
-#include "../net/Controls.cpp"
+#include "../net/Daemon.cpp"
 
 #include "../UI/Helpers/CSS.cpp"
 #include "../UI/Themes/Themes.cpp"

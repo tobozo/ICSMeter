@@ -51,6 +51,29 @@ namespace ICSMeter
       preferences.end();
     }
 
+
+    size_t setString(const char* key, const char* value)
+    {
+      preferences.begin(NAME);
+      size_t ret = preferences.putString( key,  value);
+      preferences.end();
+      return ret;
+    }
+
+
+    size_t getString(const char* key, char* value, size_t maxLen)
+    {
+      preferences.begin(NAME);
+
+      size_t ret = preferences.getString( key, value, maxLen );
+
+      preferences.end();
+
+      return ret;
+    }
+
+
+
   };
 
 };
