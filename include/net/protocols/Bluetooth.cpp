@@ -16,13 +16,14 @@ namespace ICSMeter
       using namespace daemon;
       using namespace UI;
 
-      constexpr const char * ERR_BT_INIT = "An error occurred initializing Bluetooth";
-      constexpr const char * MSG_BT_INIT = "Bluetooth initialized";
-
-      constexpr const char* MSG_BT_CONNECTED    = "BT Client Connected";
-      constexpr const char* MSG_BT_DISCONNECTED = "BT Client disconnected";
+      constexpr const char * ERR_BT_INIT         = "An error occurred initializing Bluetooth";
+      constexpr const char * MSG_BT_INIT         = "Bluetooth initialized";
+      constexpr const char * MSG_NEEDPAIRING     = "Need Pairing";
+      constexpr const char * MSG_BT_CONNECTED    = "BT Client Connected";
+      constexpr const char * MSG_BT_DISCONNECTED = "BT Client disconnected";
 
       bool connected;
+      const char* message = MSG_NEEDPAIRING;
 
 
       void BluetoothEvent(esp_spp_cb_event_t event, esp_spp_cb_param_t *param);
@@ -41,53 +42,45 @@ namespace ICSMeter
 
       bool available()
       {
-        return connected;
+        return bluetooth::connected;
       }
 
 
       // Send CI-V Command by Bluetooth
-      bool sendCommand(char *request, size_t n, char *buffer, uint8_t limit)
+      bool sendCommand(char *request, size_t request_size, char *response, uint8_t response_size )
       {
-        //if( proxy::errors_count > proxy::max_errors ) return;
-        uint8_t bytes[3];
-        uint8_t bytes_count = 0;
-
-        // /!\ while()/while()/()while ladder is bad for binary size !
-        // using for() loop is less prone to scalar expansion
-
-        while( bytes_count != limit ) {
-          for( uint8_t i=0; i<n; i++ ) {
-            CAT.write(request[i]);
-          }
-
-          vTaskDelay(100);
-
-          while( CAT.available() ) {
-            bytes[0] = CAT.read();
-            bytes[1] = CAT.read();
-
-            if( bytes[0] == 0xfe && bytes[1] == 0xfe ) {
-              bytes_count = 0;
-              bytes[2] = CAT.read();
-
-              while( bytes[2] != 0xfd ) {
-                buffer[bytes_count] = bytes[2];
-                bytes[2] = CAT.read();
-                bytes_count++;
-                if( bytes_count > limit ) {
-                  #if DEBUG==1
-                    Serial.print(" Overflow");
-                  #endif
-                  return false;
-                  break;
-                }
-              }
-            }
-          }
-          proxy::setFlag( PROXY_ONLINE ); // probably not necessary
+        // send request
+        if( CAT.write( (uint8_t*)request, request_size ) != request_size ) {
+          goto _tx_offline;
         }
-        return proxy::available();
-        // Serial.println(" Ok");
+        // give some time for the peer to respond
+        vTaskDelay(100);
+        // got response ?
+        if( !CAT.available() ) {
+          goto _tx_offline;
+        }
+        // read packet header
+        uint8_t bytes[2];
+        if( CAT.readBytes( bytes, 2 ) != 2 ) {
+          goto _tx_offline;
+        }
+        // validate header
+        if( bytes[0] != 0xfe || bytes[1] != 0xfe ) {
+          goto _tx_offline;
+        }
+        // read packet data
+        if( CAT.readBytesUntil( 0xfd, response, response_size ) == response_size ) {
+          goto _tx_online;
+        }
+        //while( CAT.available() ) CAT.read(); // flush ?
+
+        _tx_offline:
+          proxy::setFlag( TX_OFFLINE );
+          return false;
+
+        _tx_online:
+          proxy::setFlag( TX_ONLINE );
+          return proxy::available();
       }
 
 
@@ -96,20 +89,26 @@ namespace ICSMeter
       void BluetoothEvent(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
       {
         if (event == ESP_SPP_SRV_OPEN_EVT) {
-          connected = true;
+          proxy::setFlag( PROXY_ONLINE );
+          bluetooth::connected = true;
           Serial.println( MSG_BT_CONNECTED );
+          bluetooth::message = nullptr;
         }
-        if (event == ESP_SPP_CLOSE_EVT) {
+        else if (event == ESP_SPP_CLOSE_EVT) {
           proxy::setFlag( TX_OFFLINE );
-          ScreenSaver::sleep();
-          // tft.sleep();
-          // ScreenSaver::wakeup = false;
-          // connected = false;
+          proxy::setFlag( PROXY_OFFLINE );
+          if( bluetooth::connected ) {
+            // IC was disconnected, go to sleep
+            ScreenSaver::sleep();
+          }
+          bluetooth::connected = false;
           Serial.println( MSG_BT_DISCONNECTED );
-
+          bluetooth::message = MSG_NEEDPAIRING;
+        } else {
+          Serial.printf("evt: %d\n", event );
         }
-      }
 
+      }
 
     };
   };

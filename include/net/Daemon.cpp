@@ -17,8 +17,6 @@ namespace ICSMeter
       using namespace Utils;
       using namespace UI;
 
-      constexpr const char* MSG_NEEDPAIRING = "Need Pairing";
-      constexpr const char* MSG_CHECKWIFI   = "Check Wifi";
       uint32_t tx_poll_frequency = 1000; // milliseconds between each ICScan()
       uint32_t tx_last_poll      = millis();
       static uint8_t tx = 0;
@@ -26,13 +24,7 @@ namespace ICSMeter
 
       void setup()
       {
-        if( !wifi::available() ) {
-          wifi::setup(); // non blocking wifi setup
-        }
-
-        if( hasBluetooth() ) {
-          bluetooth::setup(); // start BT if needed
-        }
+        proxy::agent.setup();
       }
 
 
@@ -43,6 +35,7 @@ namespace ICSMeter
         if( daemon::connected() ) {
 
           if(tx != 0) {
+            log_i("Drawing widgets");
             ScreenSaver::resetTimer(); // If transmit, refresh tempo
             FastLed::set( tx );
             UI::drawWidgets();
@@ -76,7 +69,8 @@ namespace ICSMeter
 
         for (;;) {
 
-          screenshot::check(); // check for queued screenshot request
+          //screenshot::check(); // check for queued screenshot request
+
           daemon::check(); // check for wifi/ble/proxy health
 
           vTaskDelay( 10 );
@@ -86,27 +80,59 @@ namespace ICSMeter
 
       void check() // called from task, may induce network blocking operations
       {
-        if ( daemon::needsPairing() ) {
-          message = MSG_NEEDPAIRING;
-        } else if ( daemon::needsWiFiChecked() ) {
-          message = MSG_CHECKWIFI;
-        } else if ( daemon::needsProxyChecked() ) {
-          if( ScreenSaver::isAwake() ) {
-            message = proxy::checkStatus();
-          } else {
-            message = proxy::MSG_CHECKTX; // won't be displayed but error state needs to be maintained
-          }
-        } else {
-          message = nullptr;
-          if( tx_last_poll + tx_poll_frequency < millis() ) {
-            tx = CIV::getTX();
-            if(tx != 0) {
-              proxy::last_check = millis();
-              daemon::ICScan(); // query all statuses
-            }
-            tx_last_poll = millis();
-          }
+        if( ! proxy::agent.available() ) { // link check
+          message = proxy::agent.message;
+          return;
         }
+
+        proxy::checkStatus();
+
+        if( ScreenSaver::isAsleep() ) {
+          return;
+        }
+
+        if( ! proxy::available() ) {
+          //message = proxy::MSG_CHECKTX;
+          return;
+        }
+
+        if( ! proxy::connected() ) {
+          message = proxy::MSG_CHECKPROXY;
+          return;
+        }
+
+        if( tx_last_poll + tx_poll_frequency < millis() ) {
+          tx = CIV::getTX();
+          if(tx != 0) {
+            log_v("Polling");
+            daemon::ICScan(); // query all statuses
+            proxy::last_check = millis();
+          }
+          tx_last_poll = millis();
+        }
+
+
+//         if ( daemon::needsPairing() ) {
+//           message = MSG_NEEDPAIRING;
+//         } else if ( daemon::needsWiFiChecked() ) {
+//           message = MSG_CHECKWIFI;
+//         } else if ( daemon::needsProxyChecked() ) {
+//           if( ScreenSaver::isAwake() ) {
+//             message = proxy::checkStatus();
+//           } else {
+//             message = proxy::MSG_CHECKTX; // won't be displayed but error state needs to be maintained
+//           }
+//         } else {
+//           message = nullptr;
+//           if( tx_last_poll + tx_poll_frequency < millis() ) {
+//             tx = CIV::getTX();
+//             if(tx != 0) {
+//               proxy::last_check = millis();
+//               daemon::ICScan(); // query all statuses
+//             }
+//             tx_last_poll = millis();
+//           }
+//         }
       }
 
 
@@ -131,11 +157,19 @@ namespace ICSMeter
       }
 
 
-      bool dispatchCommand(char *request, size_t n, char *buffer, uint8_t limit) // CI-V Command dispatcher
+      bool dispatchCommand( char *request, size_t request_size, char *response, uint8_t response_size ) // CI-V Command dispatcher
       {
-        if ( hasBluetooth() ) return bluetooth::sendCommand(request, n, buffer, limit);
-        else if( !proxy::available() ) return false;
-        return wifi::sendCommand(request, n, buffer, limit);
+        if( !proxy::connected() ) {
+          log_w("Dispatch request while proxy is diconnected???");
+          return false;
+        }
+        if( !proxy::available() ) {
+          log_w("Dispatch request while proxy is offline???");
+          return false;
+        }
+        bool ret = proxy::agent.sendCommand(request, request_size, response, response_size);
+        if( ret ) proxy::last_check = millis();
+        return ret;
       }
 
 

@@ -50,7 +50,7 @@ namespace ICSMeter
     UI::setup();
     UI::drawWidgets( true );
 
-    xTaskCreatePinnedToCore( daemon::netTask, "netTask", 8192, NULL, 16, NULL, 0);
+    xTaskCreatePinnedToCore( daemon::netTask, "netTask", 8192, NULL, 0, NULL, 0);
 
   }
 

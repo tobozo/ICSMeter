@@ -108,7 +108,12 @@ namespace ICSMeter
 
       void draw(float_t angle, uint16_t a, uint16_t b, uint16_t c, uint16_t d)
       {
-        ICSGauge->animateNeedle( angle );
+        ICSGauge->setNeedle( angle );
+        uint32_t now = millis();
+        while( now + 300 > millis() ) {
+          ICSGauge->easeNeedle( 300 );
+        }
+        //ICSGauge->animateNeedle( angle );
       }
 
 

@@ -15,6 +15,8 @@ namespace ICSMeter
 
       constexpr const char* MSG_WIFI_UP   = "Wifi Client Connected";
       constexpr const char* MSG_WIFI_DOWN = "Wifi Client disconnected";
+      constexpr const char* MSG_CHECKWIFI = "Check Wifi";
+
       char wifi_ssid[33];
       char wifi_pass[64];
 
@@ -23,6 +25,7 @@ namespace ICSMeter
       bool connected = false;
       bool has_credentials = ( strcmp( WIFI_SSID, "YOUR WIFI SSID" )!=0 && strcmp( WIFI_PASSWORD, "YOUR WIFI PASSWORD" )!=0 );
       bool setup_done = false;
+      const char* message = MSG_CHECKWIFI;
 
 
       void setup()
@@ -138,24 +141,26 @@ namespace ICSMeter
 
 
       // Send CI-V Command by Wifi
-      bool sendCommand(char *request, size_t n, char *buffer, uint8_t limit)
+      bool sendCommand( char *request, size_t request_size, char *resp, uint8_t response_size )
       {
-        if( !available() ) return false; // wifi must be connected
+        if( !available() ) {
+          log_e("No WiFi :-(");
+          return false; // wifi must be connected
+        }
         using namespace wifi;
 
-        log_d("Sending proxy request");
         bool ret = false;
 
         HTTPClient http;
 
         http.setTimeout(1);           // HTTPClient.h => setTimeout(uint16_t timeout) set the timeout (seconds) for the incoming connection
         http.setConnectTimeout(1000); // HTTPClient.h => setConnectTimeout(int32_t connectTimeout) set the timeout (milliseconds) outgoing connection
-        civClient.setTimeout( 1 );    // WiFiClient.h => setTimeout(uint32_t seconds) set the timeout for the client waiting for incoming data
+        civClient.setTimeout( 5 );    // WiFiClient.h => setTimeout(uint32_t seconds) set the timeout for the client waiting for incoming data
 
         String command = "";
         char hexStr[4];
 
-        for (uint8_t i = 0; i < n; i++) {
+        for (uint8_t i = 0; i < request_size; i++) {
           sprintf(hexStr, "%02x,", request[i]);
           command += String(hexStr);
         }
@@ -166,7 +171,9 @@ namespace ICSMeter
         http.addHeader("User-Agent", USER_AGENT );
         http.addHeader("Connection", "keep-alive");
 
-        uint16_t httpCode = http.GET();
+        int httpCode = http.GET();
+
+        log_i("Sent proxy request: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x", request[0], request[1], request[2], request[3], request[4], request[5], request[6] );
 
         if (httpCode == 200) {
           proxy::setFlag( PROXY_ONLINE );
@@ -176,40 +183,52 @@ namespace ICSMeter
           response = response.substring(4);
 
           if (response == "") {
-            proxy::setFlag( TX_OFFLINE );
             errors_count++;
+              log_i("Got empty response");
+            if( errors_count > max_errors ) {
+              proxy::setFlag( TX_OFFLINE );
+            }
           } else {
             proxy::setFlag( TX_ONLINE );
+            wifi::message = nullptr;
             ret = true;
             errors_count = 0;
 
-            for (uint8_t i = 0; i < limit; i++) {
-              buffer[i] = strtol( response.substring(i * 2, (i * 2) + 2).c_str(), NULL, 16);
+            for (uint8_t i = 0; i < response_size; i++) {
+              resp[i] = strtol( response.substring(i * 2, (i * 2) + 2).c_str(), NULL, 16);
             }
 
             #if DEBUG==1
               Serial.println("-----\n" + response + " " + String( response.length() ) ) ;
-              for (uint8_t i = 0; i < limit; i++) {
-                Serial.print( String( int(buffer[i]) ) + " " );
+              for (uint8_t i = 0; i < response_size; i++) {
+                Serial.print( String( int(resp[i]) ) + " " );
               }
               Serial.println(" \n-----\n");
             #endif
+            log_i("Got response: %s", response.c_str() );
+
           }
         } else {
+
+          errors_count++;
 
           String response = http.getString(); // Get data
 
           if( httpCode == 404 ) {
-            log_d("awww this proxy is not doing well (HTTP Error Code: %d, response: %s", httpCode, response.c_str() );
+            log_i("awww this proxy is not doing well (HTTP Error Code: %d, response: %s", httpCode, response.c_str() );
             proxy::setFlag( PROXY_ONLINE );
             proxy::setFlag( TX_OFFLINE );
           } else {
             // http timeout ?
-            proxy::setFlag( PROXY_OFFLINE );
+            log_i("Got unknown status response: %d", httpCode );
+            if( errors_count > max_errors ) {
+              wifi::message = proxy::MSG_CHECKPROXY;
+              proxy::setFlag( TX_OFFLINE );
+            }
           }
-          errors_count++;
         }
         http.end(); // Free the resources
+
         return ret;
       }
 
@@ -228,13 +247,15 @@ namespace ICSMeter
           case ARDUINO_EVENT_WIFI_STA_GOT_IP:
             Serial.println( MSG_WIFI_UP );
             Serial.println(WiFi.localIP());
-            connected = true;
-            screenshot::setup();
+            wifi::connected = true;
+            screenshot::setupAsync();
             connect_attempts = 0;
+            wifi::message = proxy::MSG_CHECKPROXY;
           break;
           case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
             Serial.println( MSG_WIFI_DOWN );
-            connected = false;
+            wifi::connected = false;
+            wifi::message = MSG_CHECKWIFI;
             WiFi.reconnect();
             if( ++connect_attempts >= max_reconnect_attempts ) { // TODO: reset connect_attempts from settings
               WiFi.disconnect( true );

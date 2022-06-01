@@ -25,7 +25,7 @@ namespace ICSMeter
       bool needsWiFiChecked();
       bool needsProxyChecked();
 
-      bool dispatchCommand(char *request, size_t n, char *buffer, uint8_t limit); // Send CI-V Command dispatcher
+      bool dispatchCommand( char *request, size_t request_size, char *response, uint8_t response_size ); // Send CI-V Command dispatcher
 
       // /!\ verbs are UI relative
       void setDataMode();  // counter/label values
@@ -72,6 +72,7 @@ namespace ICSMeter
     namespace screenshot
     {
       void setup();
+      void setupAsync();
       void M5Screen24bmp( WiFiClient *client ); // Get screenshot
       void check(); // manage screenshot
       void handle404();
@@ -90,7 +91,8 @@ namespace ICSMeter
       bool saveCredentials( const char* new_wifi_ssid, const char* new_wifi_pass );
       bool loadCredentials( char* dest_wifi_ssid, char* dest_wifi_pass );
       void WiFiEvent(WiFiEvent_t event);
-      bool sendCommand(char *request, size_t n, char *buffer, uint8_t limit);
+      bool sendCommand( char *request, size_t request_size, char *response, uint8_t response_size );
+      extern const char* message;
     };
 
 
@@ -98,7 +100,8 @@ namespace ICSMeter
     {
       void setup();
       bool available();
-      bool sendCommand(char *request, size_t n, char *buffer, uint8_t limit);
+      bool sendCommand( char *request, size_t request_size, char *response, uint8_t response_size );
+      extern const char* message;
     };
 
 
@@ -110,15 +113,40 @@ namespace ICSMeter
       TX_OFFLINE
     } proxy_flags;
 
+
+    struct proxy_struct_t
+    {
+      void (*setup)();
+      bool (*available)();
+      bool (*sendCommand)( char *request, size_t request_size, char *response, uint8_t response_size );
+      const char* message;
+    };
+
+
     namespace proxy
     {
+      proxy_struct_t agent =
+        #if IC_CONNECT==BT
+        { bluetooth::setup, bluetooth::available, bluetooth::sendCommand, bluetooth::message }
+        #elif IC_CONNECT==USB
+        { wifi::setup,      wifi::available,      wifi::sendCommand,      wifi::message }
+        #endif
+      ;
+
+      constexpr const char* MSG_CHECKTX     = "Check TX";
+      constexpr const char* MSG_CHECKPROXY  = "Check Proxy";
+      constexpr const char* MSG_TX_UP       = "TX connected";
+      constexpr const char* MSG_TX_DOWN     = "TX disconnected";
+      constexpr const char* MSG_MAX_ERRORS  = "Bad network";
+      constexpr const char* MSG_LINK_DOWN   = "Link Down";
+
       void setup();
       bool available();
       bool connected();
       void setFlag( proxy_flags_t flag );
       uint32_t errors_count = 0;
       const uint32_t max_errors = 100; // mark the proxy as offline when this threshold is reached
-      const char* checkStatus();
+      void checkStatus();
     };
 
 

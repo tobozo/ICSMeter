@@ -16,9 +16,9 @@
 #define WIFI_PASSWORD   "YOUR WIFI PASSWORD"    // Your WiFi Password
 
 // Proxy Config
-#define SERIAL_DEVICE "/dev/ttyUSB0"            // Proxy Serial Device (/dev/ttyACM0, /dev/ttyUSB0, COM10, etc.)
+#define SERIAL_DEVICE "/dev/ttyUSB1"            // Proxy Serial Device (/dev/ttyACM0, /dev/ttyUSB0, COM10, etc.)
 #define BAUDE_RATE 115200                       // Proxy Serial Device Baude Rate
-#define PROXY_URL "http://192.168.1.32"         // Proxy HTTP URL
+#define PROXY_URL "http://192.168.1.15"         // Proxy HTTP URL
 #define PROXY_PORT 1234                         // Proxy HTTP Port
 
 // Transverter

@@ -18,6 +18,7 @@ namespace ICSMeter
       char buffer[8]; // shared buffer
       char request[7] = { 0xFE, 0xFE, CI_V_ADDRESS, 0xE0, 0x00, 0x00, 0xfd }; // basic CIV request (3 last bytes=command)
 
+      constexpr const command_t CIV_CHECK         = { 0x03, 0xfd, 0x00 }; // ping IC
       constexpr const command_t CIV_GET_TX        = { 0x1c, 0x00, 0xfd }; // Send/read the transceiver’s status (00=RX, 01=TX)
       constexpr const command_t CIV_GET_DATA_MODE = { 0x1a, 0x06, 0xfd }; // Send/read the DATA mode setting
       constexpr const command_t CIV_GET_SMETER    = { 0x15, 0x02, 0xfd }; // Read S-meter level (0000=S0, 0120=S9, 0241=S9+60 dB)
@@ -40,8 +41,11 @@ namespace ICSMeter
       {
         uint8_t value;
         setRequest( CIV_GET_TX );
-        size_t n = sizeof(request) / sizeof(request[0]);
-        if( ! dispatchCommand((char*)request, n, buffer, 5) ) return 0;
+        size_t request_size = sizeof(request) / sizeof(request[0]);
+        if( ! dispatchCommand((char*)request, request_size, buffer, 5) ) {
+          log_e("Unable to dispatch command");
+          return 0;
+        }
         if (buffer[4] <= 1) {
           value = buffer[4];
         } else {
@@ -54,8 +58,8 @@ namespace ICSMeter
       char getDataMode()
       {
         setRequest( CIV_GET_DATA_MODE );
-        size_t n = sizeof(request) / sizeof(request[0]);
-        if( ! dispatchCommand(request, n, buffer, 6) ) return 0;
+        size_t request_size = sizeof(request) / sizeof(request[0]);
+        if( ! dispatchCommand(request, request_size, buffer, 6) ) return 0;
         return buffer[4];
       }
 
@@ -70,9 +74,9 @@ namespace ICSMeter
         static uint8_t val2 = 0;
         float_t angle = 0;
         GaugeMeasure_t ret = {0,""};
-        size_t n = sizeof(request) / sizeof(request[0]);
+        size_t request_size = sizeof(request) / sizeof(request[0]);
 
-        if( ! dispatchCommand(request, n, buffer, 6) ) return ret;
+        if( ! dispatchCommand(request, request_size, buffer, 6) ) return ret;
 
         sprintf(str, "%02x%02x", buffer[4], buffer[5]);
         val0 = atoi(str);
@@ -181,7 +185,7 @@ namespace ICSMeter
         size_t n = sizeof(request) / sizeof(request[0]);
         GaugeMeasure_t ret = {0,""};
 
-        if( !dispatchCommand(request, n, buffer, 6) ) return ret;
+        if( ! dispatchCommand(request, n, buffer, 6) ) return ret;
 
         sprintf(str, "%02x%02x", buffer[4], buffer[5]);
         val0 = atoi(str);
