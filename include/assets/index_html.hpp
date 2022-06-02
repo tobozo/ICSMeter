@@ -73,36 +73,40 @@ namespace ICSMeter
   </table>
 </div>
 <script>
-async function postData(url = '', data = {}) {
-  // Default options are marked with *
-  const response = await fetch(url, {
-    method: 'POST', // *GET, POST, PUT, DELETE, etc.
-    mode: 'cors', // no-cors, *cors, same-origin
-    cache: 'no-cache', // *default, no-cache, reload, force-cache, only-if-cached
-    credentials: 'same-origin', // include, *same-origin, omit
+
+
+const data =
+{
+  tty          : '/dev/ttyUSB1',
+  baud_rate    : '115200',
+  command      : 'fefea4e01502fd',
+  polling_rate : '1',
+  host         : 'icsmeter.local'
+};
+
+
+function unsubscribe()
+{
+  fetch('http://localhost:1234/unsubscribe', {
+    method: 'POST', // or 'PUT'
+    mode:'no-cors', // no-cors, *cors, same-origin
     headers: {
-      'Content-Type': 'application/json'
-      // 'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Type': 'application/json',
     },
-    redirect: 'follow', // manual, *follow, error
-    referrerPolicy: 'no-referrer', // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
-    body: JSON.stringify(data) // body data type must match "Content-Type" header
+    body: JSON.stringify(data),
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log('Success:', data);
+  })
+  .catch((error) => {
+    console.error('Error:', error);
   });
-  return response.json(); // parses JSON response into native JavaScript objects
 }
+
 
 function subscribe()
 {
-  const data = /*{ username: 'example' };*/
-  {
-    tty          : '/dev/ttyUSB1',
-    baud_rate    : '115200',
-    command      : 'fefea4e01502fd',
-    polling_rate : '1',
-    host         : 'icsmeter.local'
-  };
-
-
   fetch('http://localhost:1234/subscribe', {
     method: 'POST', // or 'PUT'
     mode:'no-cors', // no-cors, *cors, same-origin
@@ -121,7 +125,8 @@ function subscribe()
 }
 
 </script>
-<button onclick=subscribe()>subscribe</button>
+<button onclick=subscribe() style="display:none">subscribe</button>
+<button onclick=unsubscribe() style="display:none">unsubscribe</button>
 </body>
 </html>
 )HTML";
