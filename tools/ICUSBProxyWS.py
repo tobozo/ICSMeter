@@ -1,23 +1,41 @@
 #!/usr/bin/env python3
 
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import os, sys, socket
+#
+#  ICUSBProxyWS.py by @tobozo copyleft (c+) 2022
+#
+#  Scope: behaves like @armel's ICUSBProxy.py while providing some added features:
+#
+#    - Threading model
+#      - Main thread = web server (legacy)
+#      - PortsEnumerator = scans for changes on tty/COM connected devices
+#      - Poll = runs subscriptions and publishes if needed
+#    - Extended support for shared UART
+#      - Ports enumeration
+#      - Port sharing
+#      - Persistence
+#      - Concurrent access
+#    - Inverted subscribe/publish data flow model
+#      - M5 device subscribes via POST (devive, command, poll_delay, publish address)
+#      - Proxy thread publishes to M5 device WebSocket when new data needs to be sent
+#    - Demo/test mode based for IC705
+#
+
+
 import websocket
-import logging
-import cgi
+import random
+import time
+import json
 import serial
 import serial.tools.list_ports
-import random
-import json
 import threading
 from threading import Thread, Lock
-import time
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 name           = "ICUSBProxy"
 version        = "0.1.0"
 client_timeout = 0.01
 server_verbose = 0
-demo_mode      = 1 # use this when no IC is actually connected, will send dummy data
+demo_mode      = 0 # use this when no IC is actually connected, will send dummy data
 
 UARTS      = [] # UART's are shared between HTTP Server and WebSockets/Serial thread, but also across M5 Devices
 uart_count = 0
@@ -25,7 +43,7 @@ M5Clients = []  # M5Stack devices with registered subscriptions
 connected_serial_ports = [] # currently connected COM/tty ports, repopulated every second
 
 
-# lorem ipsum for IC705
+
 
 def demo_response( clt_address, msg ):
     if   msg == '03fd':   # CIV_CHECK (ping)
@@ -66,6 +84,7 @@ def demo_response( clt_address, msg ):
         return 'fefee0' + clt_address + '1a060101fd'
     else:
         return '??????fd'
+
 
 
 
@@ -177,7 +196,7 @@ def Poll( subscription ):
 
 
 
-
+# daemon
 def PortsEnumerator():
     global connected_serial_ports
     while True:
@@ -194,7 +213,7 @@ def PortsEnumerator():
 
 
 
-
+# daemon
 def UARTPoller():
     while True:
         global M5Clients, UARTS, connected_serial_ports
