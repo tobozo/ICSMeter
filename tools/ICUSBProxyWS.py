@@ -28,19 +28,21 @@ import json
 import serial
 import serial.tools.list_ports
 import threading
+import logging
 from threading import Thread, Lock
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 name           = "ICUSBProxy"
 version        = "0.1.0"
 client_timeout = 0.01
-server_verbose = 0
+server_verbose = 1
 demo_mode      = 0 # use this when no IC is actually connected, will send dummy data
 
 UARTS      = [] # UART's are shared between HTTP Server and WebSockets/Serial thread, but also across M5 Devices
 uart_count = 0
-M5Clients = []  # M5Stack devices with registered subscriptions
+M5Clients  = [] # M5Stack devices with registered subscriptions
 connected_serial_ports = [] # currently connected COM/tty ports, repopulated every second
+last_message = "" # to avoid repeated messages in the console
 
 
 
@@ -86,6 +88,24 @@ def demo_response( clt_address, msg ):
         return '??????fd'
 
 
+last_error = ''
+def ConsolePrintError( e ):
+    global last_error
+    if last_error != e:
+      print( e )
+      last_error = e
+
+
+
+last_message = ''
+def ConsolePrintMessage( msg, error=None ):
+    global last_message
+    if error!=None:
+      ConsolePrintError( error )
+    if server_verbose == 1 and last_message != msg:
+        print( msg )
+        last_message = msg
+
 
 
 
@@ -123,8 +143,8 @@ def initSerial( tty, bauds ):
     try:
         uart = serial.Serial(tty, bauds, timeout=client_timeout)
         return uart
-    except:
-        print(tty + " not reachable")
+    except Exception as e:
+        ConsolePrintMessage(tty + " not reachable")
         return None
 
 
@@ -136,11 +156,11 @@ def GetCIVResponse( request, response_data ):
 
     # test: 2 first bytes must match, bytes 3 and 4 are swapped
     if response[:4]!=request[:4] or response[4:2]!=request[6:2] or response[6:2]!=request[4:2]:
-        print( 'invalid packet')
+        ConsolePrintMessage( 'invalid packet')
     elif len(data) > 0 and data[-1] == 0xfd: # packet terminator
         return response
     else:
-        print( 'unterminated packet')
+        ConsolePrintMessage( 'unterminated packet')
     return ''
 
 
@@ -148,12 +168,12 @@ def GetCIVResponse( request, response_data ):
 def WSEmit( client, message ):
     try:
         client.ws.send( message )
-    except:
-        print("Reconnecting")
+    except Exception as e:
+        ConsolePrintMessage("Reconnecting")
         try:
             client.ws.connect("ws://"+client.host+"/ws", origin="icusbproxy.local")
-        except:
-            print("WS Connection lost")
+        except Exception as e:
+            ConsolePrintMessage("WS Connection lost")
 
 
 
@@ -163,10 +183,11 @@ def WSEmit( client, message ):
 def Poll( subscription ):
 
     if subscription.uart.serial == None:
-        print( "opening uart" )
+        ConsolePrintMessage( "opening uart" )
         try:
             subscription.uart.serial = initSerial(  subscription.uart.tty, subscription.uart.bauds )
-        except:
+        except Exception as e:
+            ConsolePrintMessage("Opening UART failed")
             return False
 
     # previous attempt to connect to serial failed, no need to go further
@@ -179,18 +200,19 @@ def Poll( subscription ):
         subscription.uart.serial.write( packet )
         data = subscription.uart.serial.read(size=16) # Set size to something high
         response = GetCIVResponse( subscription.cmd, data )
-        if response == '':
-            print('Invalid data: ', data )
+        if response == '' or response == None:
+            ConsolePrintMessage(['Invalid data: ', data])
             return False
         else:
-            subscription.last_response = response
-            print( "New data: ", data )
-            WSEmit( M5Client, response )
+            if subscription.last_response != response:
+                subscription.last_response = response
+                ConsolePrintMessage(["New data: ", data])
+                WSEmit( M5Client, response )
             return True
-    except:
+    except Exception as e:
         subscription.uart.serial = None
-        print("UART disconnected")
-        WSEmit( M5Client, "disconnected" )
+        ConsolePrintMessage("UART disconnected")
+        WSEmit( M5Client, "UART DOWN" )
         return False
 
 
@@ -203,12 +225,15 @@ def PortsEnumerator():
         tmp_ports = [tuple(p) for p in list(serial.tools.list_ports.comports())]
         if len(tmp_ports)>len(connected_serial_ports):
             new_device = list(set(tmp_ports) - set(connected_serial_ports))
-            print("New Device(s): ", new_device )
+            ConsolePrintMessage(["New Device(s): ", new_device] )
         elif len(tmp_ports)<len(connected_serial_ports):
             old_device = list(set(connected_serial_ports) - set(tmp_ports))
-            print("Device(s) removed: ", old_device)
+            ConsolePrintMessage(["Device(s) removed: ", old_device] )
         connected_serial_ports = tmp_ports
         time.sleep(1)
+
+
+
 
 
 
@@ -216,7 +241,7 @@ def PortsEnumerator():
 # daemon
 def UARTPoller():
     while True:
-        global M5Clients, UARTS, connected_serial_ports
+        global M5Clients, UARTS, connected_serial_ports, uart_message
         sleep_time = 1
         for M5Client in M5Clients:
             for subscription in M5Client.subscriptions:
@@ -228,10 +253,10 @@ def UARTPoller():
                         # get mutex to avoid collision with the main thread
                         subscription.uart.mutex.acquire()
 
-                        print( "polling" )
+                        ConsolePrintMessage( "polling" )
                         if Poll( subscription ) != True:
-                            print("UART offline")
-                            WSEmit( M5Client, "offline" )
+                            ConsolePrintMessage("UART offline")
+                            WSEmit( M5Client, "UART DOWN" )
 
                         subscription.last_poll = now
 
@@ -240,8 +265,8 @@ def UARTPoller():
                         if subscription.freq == 0: # one time subscription self-deletes after use
                             M5Client.subscriptions.remove( subscription )
                 else:
-                    print( subscription.uart.tty + " is not available" )
-                    WSEmit( M5Client, "disconnected" )
+                    ConsolePrintMessage( subscription.uart.tty + " is not available" )
+                    WSEmit( M5Client, "UART DOWN" )
 
         time.sleep( sleep_time ) # avoid loopbacks
 
@@ -258,7 +283,7 @@ class S(BaseHTTPRequestHandler):
         self.end_headers()
 
     def _set_error(self):
-        self.send_response(404)
+        self.send_response(500)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
 
@@ -279,17 +304,23 @@ class S(BaseHTTPRequestHandler):
 
         varLen = int(self.headers['Content-Length'])
         postContent = self.rfile.read(varLen)
-        jsonContent = json.loads( postContent )
+        try:
+            jsonContent = json.loads( postContent )
+        except Exception as e:
+            ConsolePrintMessage(["Malformed json", postContent] );
+            self._set_error()
+            self.wfile.write("{}".format( "BAD JSON" ).encode('utf-8'))
+            return
 
         sub = Subscription()
         sub.cmd   = jsonContent["command"]
-        sub.freq  = int( jsonContent["polling_rate"] )
+        sub.freq  = float( jsonContent["polling_rate"] )
         M5Host    = jsonContent["host"]
         tty       = jsonContent["tty"]
         bauds     = jsonContent["baud_rate"]
 
         if M5Host == None or sub.cmd == None or tty == None or bauds == None or sub.freq == None:
-            print('Incomplete subscription')
+            ConsolePrintMessage('Incomplete subscription')
             self._set_error()
             return
 
@@ -320,38 +351,43 @@ class S(BaseHTTPRequestHandler):
             M5Client.ws = websocket.WebSocket()
             M5Client.ws.connect("ws://"+M5Client.host+"/ws", origin="icusbproxy.local")
             M5Client.ws.send("ping")
-            print(M5Client.ws.recv())
+            ConsolePrintMessage(M5Client.ws.recv())
             M5Clients.append( M5Client )
 
 
         if self.path == '/subscribe':
             for subscription in M5Client.subscriptions:
                 if subscription.uart.id == sub.uart.id and subscription.cmd == sub.cmd:
-                    print("Subscription already exists!")
-                    self._set_error()
+                    #print("Subscription already exists!")
+                    self._set_response()
+                    self.wfile.write("{}".format(sub.uart.id).encode('utf-8'))
                     return
             M5Client.subscriptions.append( sub )
-            print("Added subscription")
+            ConsolePrintMessage("Added subscription")
             self._set_response()
+            self.wfile.write("{}".format(sub.uart.id).encode('utf-8'))
 
         elif self.path == '/unsubscribe':
             for idx, subscription in enumerate(M5Client.subscriptions):
                 if subscription.uart.id == sub.uart.id and subscription.cmd == sub.cmd:
                     self._set_response()
                     M5Client.subscriptions.remove( subscription )
-                    print("Removed subscription")
+                    ConsolePrintMessage("Removed subscription")
                     return
-            print("Subscription didn't exist!")
+            ConsolePrintMessage("Subscription didn't exist!")
             self._set_error()
 
         else:
-            print("Unrecognized POST request: " + self.path )
+            ConsolePrintMessage("Unrecognized POST request: " + self.path )
             self._set_error()
 
 
     def do_GET(self):
+        global uart_count
         if server_verbose > 1:
             logging.info("GET request,\nPath: %s\nHeaders:\n%s\n", str(self.path), str(self.headers))
+
+        ConsolePrintMessage(["GET request Path: ", str(self.path)])
 
         # Init
         civ = str(self.path).split('=')
@@ -389,8 +425,8 @@ class S(BaseHTTPRequestHandler):
                 response = demo_response( clt_address, civ_msg )
 
                 if server_verbose > 0:
-                    print('<< Received CIV packet: ' +civ_msg )
-                    print('>> Sending response: ' +response)
+                    ConsolePrintMessage('<< Received CIV packet: ' +civ_msg )
+                    ConsolePrintMessage('>> Sending response: ' +response)
                 self.wfile.write("{}".format( response ).encode('utf-8'))
                 return
 
@@ -436,18 +472,16 @@ class S(BaseHTTPRequestHandler):
                     response = ''
 
                 if server_verbose > 0:
-                    print('Serial device ' + client_serial + ' is up...')
+                    ConsolePrintMessage('Serial device ' + client_serial + ' is up...')
 
 
-            except:
-                if server_verbose > 0:
-                    print('Serial device ' + client_serial + ' is down...')
+            except Exception as e:
+                ConsolePrintMessage('Serial device ' + client_serial + ' is down...', e)
                 self._set_error()
                 self.wfile.write("{}".format("UART DOWN").encode('utf-8'))
                 return
         else:
-            if server_verbose > 0:
-                print('Bad request ' + request)
+            ConsolePrintMessage('Bad request ' + request)
             self._set_error()
             self.wfile.write("{}".format("BAD REQUEST").encode('utf-8'))
             return
@@ -456,10 +490,13 @@ class S(BaseHTTPRequestHandler):
         try:
             self._set_response()
             self.wfile.write("{}".format(response).encode('utf-8'))
-        except:
+        except Exception as e:
+            ConsolePrintMessage("Empty response", e)
             self._set_error()
+            self.wfile.write("{}".format("EMPTY RESPONSE").encode('utf-8'))
 
-
+    def log_message(self, format, *args):
+        return
 
 
 def run(server_class=HTTPServer, handler_class=S, port=1234):
