@@ -12,71 +12,35 @@ namespace ICSMeter
 
     void setup()
     {
-      tft.setRotation(1);
+      UI::draw( true );
     }
 
 
-    bool canDraw()
+    void loop()
     {
-       return (ScreenSaver::isEnabled() == false && Settings::dialog_enabled == false);
+      ScreenSaver::loop(); // check if Screen Saver needs enabling
+      if( ScreenSaver::isEnabled() ) return;
+      if( Settings::dialog_enabled == false ) UI::draw();
+      Settings::loop();
     }
 
 
-    void drawWidgets( bool force_redraw )
+    void draw( bool force_redraw )
     {
       if( force_redraw ) {
+        utils::drawImage( &tft, layout->topImage, 0, 0, layout->topImage->width, layout->topImage->height);
+        utils::drawImage( &tft, layout->middleImage, 0, 20, layout->middleImage->width, layout->middleImage->height);
+        utils::drawImage( &tft, layout->bottomImage, 0, 160, layout->bottomImage->width, layout->bottomImage->height);
         log_d("Forced redraw");
       }
-      if( force_redraw ) drawTop();
-
       Battery::draw( force_redraw );
       Transverter::draw( force_redraw );
-
-      if( force_redraw ) drawMiddle();
-
-      if( force_redraw || Needle::needs_redraw() ) {
-        Needle::draw( force_redraw );
-      }
-
-      if( force_redraw )  drawBottom();
-
+      Network::draw( force_redraw );
+      Needle::draw( force_redraw );
       Measure::drawLabels( force_redraw );
-      if( force_redraw || DataMode::needs_redraw() ) {
-        DataMode::draw( force_redraw );
-      }
-      if( force_redraw || Measure::needs_redraw() ) {
-        Measure::drawValues( force_redraw );
-      }
-
-      if( force_redraw && Settings::dialog_enabled ) {
-        Settings::draw();
-      }
-    }
-
-
-    void drawTop()
-    {
-      utils::drawImage( &tft, layout->topImage, 0, 0, layout->topImage->width, layout->topImage->height);
-    }
-
-
-    void drawMiddle()
-    {
-      utils::drawImage( &tft, layout->middleImage, 0, 20, layout->middleImage->width, layout->middleImage->height);
-    }
-
-
-    void drawBottom()
-    {
-      utils::drawImage( &tft, layout->bottomImage, 0, 160, layout->bottomImage->width, layout->bottomImage->height);
-    }
-
-
-    void draw()
-    {
-      drawTop();
-      drawMiddle();
-      drawBottom();
+      DataMode::draw( force_redraw );
+      Measure::drawValues( force_redraw );
+      Settings::draw( force_redraw );
     }
 
 

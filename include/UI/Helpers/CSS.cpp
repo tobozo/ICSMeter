@@ -46,12 +46,12 @@ namespace ICSMeter
     void drawStyledBox_tft( M5GFX* gfx, const char* str, int32_t x, int32_t y, uint32_t w, uint32_t h, const TextBoxStyle_t* boxStyle )
     {
       gfx->fillRoundRect(x, y, w, h, boxStyle->borderRadius, boxStyle->fillColor );
-      if( boxStyle->borderWidth > 0 ) {
-        gfx->drawRoundRect(x, y, w, h, boxStyle->borderRadius, boxStyle->borderColor);
-      }
       setFontStyle( gfx, boxStyle->fontStyle );
       gfx->setTextDatum( MC_DATUM );
       gfx->drawString( str, x+w/2, y+h/2 );
+      if( boxStyle->borderWidth > 0 ) {
+        gfx->drawRoundRect(x, y, w, h, boxStyle->borderRadius, boxStyle->borderColor);
+      }
     }
 
 
@@ -60,9 +60,6 @@ namespace ICSMeter
       uint32_t transparent_color = 0x123456U;
       spriteCSS->fillSprite( transparent_color );
       spriteCSS->fillRoundRect(0, 0, w, h, boxStyle->borderRadius, boxStyle->fillColor );
-      if( boxStyle->borderWidth > 0 ) {
-        spriteCSS->drawRoundRect(0, 0, w, h, boxStyle->borderRadius, boxStyle->borderColor);
-      }
 
       setFontStyle( (M5GFX*)spriteCSS, boxStyle->fontStyle );
 
@@ -85,6 +82,9 @@ namespace ICSMeter
       }
       spriteCSS->setTextWrap(wrap);
       spriteCSS->drawString( str, tx, ty );
+      if( boxStyle->borderWidth > 0 ) {
+        spriteCSS->drawRoundRect(0, 0, w, h, boxStyle->borderRadius, boxStyle->borderColor);
+      }
       spriteCSS->pushSprite( x, y, transparent_color );
     }
 

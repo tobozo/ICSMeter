@@ -35,7 +35,7 @@ namespace ICSMeter
         .bgColor   = SettingsMenuBgColor,
         .size      = 1,
         .datum     = MC_DATUM,
-        .paddingX  =  w - 2
+        .paddingX  = w - 2
       };
 
       const CSS::FontStyle_t H1FontStyle = { &YELLOWCRE8pt7b, &SettingsStyle, CSS::TRANSPARENT };
@@ -50,6 +50,8 @@ namespace ICSMeter
         const settings_callback_t callback;
       };
 
+      void onChangeICModel        ();
+      void onChangeICID           ();
       void onChangeMeasuredValues ();
       void onChangeTransverterMode();
       void onSwitchTheme          ();
@@ -64,6 +66,8 @@ namespace ICSMeter
 
       const settings_handler_t menuchoices[] =
       {
+        { "ICOM Model",       onChangeICModel         },
+        { "CI-V Address",     onChangeICID            },
         { "Measured Values",  onChangeMeasuredValues  },
         { "Transverter Mode", onChangeTransverterMode },
         { "Themes",           onSwitchTheme           },
@@ -95,7 +99,7 @@ namespace ICSMeter
           if( buttons::btnB ) { // entering settings menu
             dialog_enabled   = true;
             setting_selected = false;
-            choice = 0;
+            //choice = 0;
             Settings::draw();
           }
           return;
@@ -108,17 +112,21 @@ namespace ICSMeter
             handleBrowsing(); // browsing settings/selecting item
           }
         }
-
+/*
         if( !dialog_enabled ) { // exiting settings menu
           exitSettingsMenu();
         }
+*/
       }
 
 
-      void draw()
+      void draw( bool force_redraw )
       {
+        if( !force_redraw || !Settings::dialog_enabled ) return;
         drawMenu();
         drawOptions();
+        buttons::cancelBubble();
+        menuchoices[choice].callback();
       }
 
 
@@ -140,9 +148,10 @@ namespace ICSMeter
         if( dialog_enabled ) {
           setMenuDelay( 300 );
           setting_selected = false;
-          log_d("Leaving settings menu");
           dialog_enabled   = false;
-          UI::drawWidgets( true );
+          buttons::cancelBubble();
+          log_d("Leaving settings menu");
+          UI::draw( true );
         }
       }
 
@@ -201,22 +210,73 @@ namespace ICSMeter
       }
 
 
-      void onChangeMeasuredValues()
+      void onChangeICModel()
       {
         setMenuDelay( 300 );
         if(buttons::btnA || buttons::btnC) {
+          if(buttons::btnA || buttons::btnC) {
+            CIV::setICModel( CIV::IC_CHOICE + 1 );
+          }
+        }
+
+        CSS::drawStyledString( &tft, CIV::IC->label, hmiddle, titleYpos, &LIFontStyle );
+
+        if(buttons::btnB) {
+          CIV::save();
+          exitSettingsMenu();
+          return;
+        }
+      }
+
+
+      void onChangeICID()
+      {
+        setMenuDelay( 300 );
+        if(buttons::btnA) {
+          setMenuDelay( 25 );
+          CIV::setICAddress( CIV::CIV_ADR - 1 );
+        }
+        if(buttons::btnC) {
+          setMenuDelay( 25 );
+          CIV::setICAddress( CIV::CIV_ADR + 1 );
+        }
+
+        char textbox[8];
+        snprintf( textbox, 7, "0x%02X", CIV::CIV_ADR );
+        CSS::drawStyledString( &tft, textbox, hmiddle, titleYpos, &LIFontStyle );
+
+        if(buttons::btnB) {
+          CIV::save();
+          exitSettingsMenu();
+        }
+      }
+
+
+      void onChangeMeasuredValues()
+      {
+        //using namespace Measure;
+        setMenuDelay( 300 );
+        if(buttons::btnA || buttons::btnC) {
           if(buttons::btnA) {
-            Measure::value -= 1;
-            if(Measure::value < 0) Measure::value = 2;
+            switch (Measure::mode) {
+              case Measure::MODE_PWR: Measure::mode = Measure::MODE_SWR; break;
+              case Measure::MODE_SMT: Measure::mode = Measure::MODE_PWR; break;
+              case Measure::MODE_SWR: Measure::mode = Measure::MODE_SMT; break;
+              default: /* duh? */  break;
+            }
           }
           if(buttons::btnC) {
-            Measure::value += 1;
-            if(Measure::value > 2) Measure::value = 0;
+            switch (Measure::mode) {
+              case Measure::MODE_PWR: Measure::mode = Measure::MODE_SMT; break;
+              case Measure::MODE_SMT: Measure::mode = Measure::MODE_SWR; break;
+              case Measure::MODE_SWR: Measure::mode = Measure::MODE_PWR; break;
+              default: /* duh? */  break;
+            }
           }
           Measure::drawLabels( true );
         }
 
-        CSS::drawStyledString( &tft, Measure::choices[Measure::value], hmiddle, titleYpos, &ULFontStyle );
+        CSS::drawStyledString( &tft, Measure::choices[Measure::mode], hmiddle, titleYpos, &ULFontStyle );
 
         if(buttons::btnB) {
           Measure::save();
@@ -238,7 +298,7 @@ namespace ICSMeter
           }
           Theme::set();
           Needle::onThemeChange();
-          UI::drawWidgets( true );
+          UI::draw( true );
           drawMenu();
         }
 
@@ -389,9 +449,13 @@ namespace ICSMeter
       }
 
 
-      void drawMenu(/*uint8_t x, uint8_t y, uint16_t w, uint8_t h*/)
+      void drawMenu()
       {
-        tft.fillRoundRect( x, y, w, h, 8, SettingsMenuBgColor );
+        for( int i=0; i<h; i+=2 ) {
+          tft.drawRoundRect( x, y+(h/2)-(i/2), w, i, 8, SettingsMenuBgColor );
+          vTaskDelay(2);
+        }
+        //tft.fillRoundRect( x, y, w, h, 8, SettingsMenuBgColor );
         tft.drawRoundRect( x, y, w, h, 8, SettingsMenuBorderColor );
 
         CSS::drawStyledString( &tft, SETTINGS_LABEL, hmiddle, 14 + y, &H1FontStyle );

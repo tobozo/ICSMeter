@@ -3,13 +3,13 @@
 
 
 // IC Transceiver Model
-#define IC_MODEL 705                            // 705, 7300 (and may be 9700)
+//#define IC_MODEL 705                            // 705, 7300 (and may be 9700)
 
 // IC Connect
-#define IC_CONNECT  USB                         // BT (Bluetooth) or USB (Universal Serial Bus)
+//#define IC_CONNECT  USB                         // BT (Bluetooth) or USB (Universal Serial Bus)
 
 // CI_V Address
-#define CI_V_ADDRESS 0xA4                       // CI-V default address 0xA4
+//#define CI_V_ADDRESS 0xA4                       // CI-V default address 0xA4
 
 // Wifi Config
 #define WIFI_SSID       "YOUR WIFI SSID"        // Your WiFi SSID

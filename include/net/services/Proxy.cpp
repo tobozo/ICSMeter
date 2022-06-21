@@ -10,11 +10,29 @@ namespace ICSMeter
 
       using namespace daemon;
 
-      uint32_t check_frequency = 5000; // delay between end of last request and next request
-      uint32_t last_check = millis();
+      civ_subscription_t CIV_CHECK_SUB          = { &CIV::CIV_CHECK,         6, 5, 0, false };
+      civ_subscription_t CIV_GET_TX_SUB         = { &CIV::CIV_GET_TX,        5, 1, 0, false };
+      civ_subscription_t CIV_GET_DATA_MODE_SUB  = { &CIV::CIV_GET_DATA_MODE, 6, 1, 0, false };
+      civ_subscription_t CIV_GET_SMETER_SUB     = { &CIV::CIV_GET_SMETER,    6, 1, 0, false };
+      civ_subscription_t CIV_GET_PWR_SUB        = { &CIV::CIV_GET_PWR,       6, 1, 0, false };
+      civ_subscription_t CIV_GET_SWR_SUB        = { &CIV::CIV_GET_SWR,       6, 1, 0, false };
+      civ_subscription_t CIV_GET_FRQ_SUB        = { &CIV::CIV_GET_FRQ,       8, 1, 0, false };
+      civ_subscription_t CIV_GET_MOD_SUB        = { &CIV::CIV_GET_MOD,       5, 1, 0, false };
+
+      civ_subscription_t *subscriptions[/*8*/] =
+      {
+        &CIV_CHECK_SUB,
+        &CIV_GET_TX_SUB,
+        &CIV_GET_DATA_MODE_SUB,
+        &CIV_GET_SMETER_SUB,
+        &CIV_GET_PWR_SUB,
+        &CIV_GET_SWR_SUB,
+        &CIV_GET_FRQ_SUB,
+        &CIV_GET_MOD_SUB
+      };
+
+      size_t subscriptions_count = sizeof( subscriptions ) / sizeof( subscriptions[0] );
       bool online = false;
-      bool txConnected = false;
-      bool had_success = false;
 
       void setup()
       {
@@ -30,7 +48,7 @@ namespace ICSMeter
 
       bool connected()
       {
-        return txConnected;
+        return CIV::txConnected;
       }
 
 
@@ -39,8 +57,8 @@ namespace ICSMeter
         switch( flag ) {
           case PROXY_ONLINE:  online = true;       break;
           case PROXY_OFFLINE: online = false;      break;
-          case TX_ONLINE:     txConnected = true;  had_success = true; break;
-          case TX_OFFLINE:    txConnected = false; break;
+          case TX_ONLINE:     CIV::txConnected = true; CIV::had_success = true; message = nullptr; break;
+          case TX_OFFLINE:    CIV::txConnected = false; break;
         }
       }
 
@@ -48,8 +66,8 @@ namespace ICSMeter
       void checkStatus()
       {
         log_v("Checking link (WiFi or Bluetooth) status");
-        if( !agent.available() ) {
-          message = agent.message;
+        if( !agent->available() ) {
+          message = agent->message;
           return;
         }
 
@@ -61,15 +79,15 @@ namespace ICSMeter
         CIV::setRequest( CIV::CIV_CHECK );
 
         // go online
-        if( !agent.sendCommand(CIV::request, 6, CIV::buffer, 6) ) {
+        if( !agent->sendCommand(CIV::request, 6, CIV::buffer, 6) ) {
           if( !proxy::available() ) {
             message = MSG_CHECKPROXY;
           } else {
-            message = agent.message ? agent.message : MSG_CHECKTX;
+            //message = agent.message ? agent.message : MSG_CHECKTX;
           }
         } else {
           message = nullptr;
-          log_d( MSG_TX_UP );
+          //log_d( MSG_TX_UP );
         }
         last_check = millis();
       }

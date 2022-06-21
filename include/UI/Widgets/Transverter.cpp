@@ -11,15 +11,13 @@ namespace ICSMeter
 
       int8_t value = 0, valueOld = 0;
 
-      const CSS::TextStyle_t labelTextStyle =
+      constexpr clipRect_t ModeClip =
       {
-        .fgColor   = 0xffffffU,
-        .bgColor   = 0x000000U,
-        .size      = 1,
-        .datum     = MC_DATUM,
-        .paddingX  = 0
+        .x = 62,
+        .y = 4,
+        .w = 26,
+        .h = 13
       };
-      const CSS::FontStyle_t labelFontStyle     = { &Font0,  &labelTextStyle, CSS::TRANSPARENT };
 
 
       void setup()
@@ -56,7 +54,7 @@ namespace ICSMeter
           valueOld = value;
           char label[16];
           snprintf(label, 15, "LO%d", value);
-          CSS::drawStyledBox( &tft, label, 62, 4, 26, 13, &Theme::BadgeBoxStyle );
+          CSS::drawStyledBox( &tft, label, ModeClip.x, ModeClip.y, ModeClip.w, ModeClip.h, &Theme::BadgeBoxStyle );
         }
       }
 

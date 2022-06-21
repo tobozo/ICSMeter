@@ -9,7 +9,7 @@ namespace ICSMeter
     namespace buttons
     {
 
-      const uint32_t poll_delay = 0; // min delay (milliseconds) between each button poll
+      const uint32_t poll_delay = 25; // min delay (milliseconds) between each button poll
       static uint32_t last_poll = millis();
 
       void loop()
@@ -27,13 +27,18 @@ namespace ICSMeter
         btnC = M5.BtnC.isPressed()  || buttonRightPressed;
 
         if( buttonLeftPressed || buttonCenterPressed || buttonRightPressed ) {
-          // auto cancel bubble for WebUI since it's been propagated already
+          log_d("Auto cancel bubble for WebUI");
+          // since it's been propagated already
           buttonLeftPressed = buttonCenterPressed = buttonRightPressed = false;
         }
       }
 
       bool hasBubble()
       {
+        // bool has_bubble = btnA || btnB || btnC;
+        // if( has_bubble ) {
+        //   log_d("Button has bubble: A:%d, B:%d, C:%d", btnA, btnB, btnC );
+        // }
         return btnA || btnB || btnC;
       }
 

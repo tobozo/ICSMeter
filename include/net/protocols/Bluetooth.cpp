@@ -1,7 +1,5 @@
 #include "../Daemon.hpp"
 
-#if IC_CONNECT==BT && IC_MODEL==705
-
 namespace ICSMeter
 {
 
@@ -23,19 +21,54 @@ namespace ICSMeter
       constexpr const char * MSG_BT_DISCONNECTED = "BT Client disconnected";
 
       bool connected;
-      const char* message = MSG_NEEDPAIRING;
+      //const char* message = MSG_NEEDPAIRING;
+
+      comm_struct_t agent = { bluetooth::setup, bluetooth::loop, bluetooth::available, bluetooth::sendCommand, bluetooth::message };
 
 
       void BluetoothEvent(esp_spp_cb_event_t event, esp_spp_cb_param_t *param);
 
+
       void setup()
       {
+        daemon::message = MSG_NEEDPAIRING;
         CAT.register_callback( BluetoothEvent );
 
         if (!CAT.begin(NAME)) {
           Serial.println( ERR_BT_INIT );
         } else {
           Serial.println( MSG_BT_INIT );
+        }
+      }
+
+
+      void loop()
+      {
+        static uint32_t retrytimer = millis();
+        static uint32_t retries = 50;
+
+        if( !CIV::txConnected && CIV::last_poll + CIV::poll_timeout < millis() ) {
+          if( CIV::had_success ) {
+
+            if( retries == 0 ) {
+              // TODO: full sleep
+              log_e("Max retries reached, giving up");
+              return;
+            }
+
+            const uint32_t now = millis();
+            const uint32_t retryafter = 5000;
+            if( retrytimer + retryafter < millis() ) {
+              // retry any command
+              CIV::setRequest( CIV::CIV_CHECK );
+              sendCommand(CIV::request, 6, CIV::buffer, 6);
+              retrytimer = millis();
+              retries--;
+            }
+          }
+        } else {
+          retries = 50;
+          retrytimer = millis();
         }
       }
 
@@ -80,7 +113,8 @@ namespace ICSMeter
 
         _tx_online:
           proxy::setFlag( TX_ONLINE );
-          return proxy::available();
+          CIV::last_poll = millis();
+          return true;
       }
 
 
@@ -92,7 +126,7 @@ namespace ICSMeter
           proxy::setFlag( PROXY_ONLINE );
           bluetooth::connected = true;
           Serial.println( MSG_BT_CONNECTED );
-          bluetooth::message = nullptr;
+          daemon::message = nullptr;
         }
         else if (event == ESP_SPP_CLOSE_EVT) {
           proxy::setFlag( TX_OFFLINE );
@@ -103,7 +137,7 @@ namespace ICSMeter
           }
           bluetooth::connected = false;
           Serial.println( MSG_BT_DISCONNECTED );
-          bluetooth::message = MSG_NEEDPAIRING;
+          daemon::message = MSG_NEEDPAIRING;
         } else {
           Serial.printf("evt: %d\n", event );
         }
@@ -115,4 +149,3 @@ namespace ICSMeter
 
 };
 
-#endif

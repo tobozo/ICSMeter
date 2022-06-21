@@ -7,11 +7,12 @@ namespace ICSMeter
   namespace UI
   {
 
+
     namespace Battery
     {
-      void   reset();
+      //void   reset();
       bool   needs_redraw();
-      int8_t getLevel(bool type);
+      int8_t getLevel();
       bool   isCharging();
       void   draw( bool force_redraw = false );
     };
@@ -19,8 +20,9 @@ namespace ICSMeter
 
     namespace DataMode
     {
-      char mode = 0;
+      //char mode = 0;
       bool needs_redraw();
+      void updateValues();
       void setFilter( String value );
       void setMode( String value );
       void draw( bool force_redraw = false );
@@ -29,29 +31,45 @@ namespace ICSMeter
 
     namespace Measure
     {
+      enum MeasureModes_t
+      {
+        MODE_PWR, // PWR
+        MODE_SMT, // SMeter
+        MODE_SWR  // SWR
+      };
       void   setup();
-      void   reset();
+      //void   reset();
       bool   needs_redraw();
-      int8_t value = 1;
+      MeasureModes_t mode = MODE_SMT;
       void   drawValues( bool force_redraw = false );
       void   drawLabels( bool force_redraw = false ); // Print Measure
-      void   setPrimaryValue( String value );
-      void   setSecondaryValue( String value );
-      void   drawPrimaryValue(String valString, uint8_t x = 160, uint8_t y = 180); // Print value
-      void   drawSecondaryValue(String valString, uint8_t x = 160, uint8_t y = 206); // Print sub value
+      void   setUnitValue( String value );
+      void   drawUnitValue(String valString, uint8_t x = 160, uint8_t y = 206); // Print sub value
     };
 
 
     namespace Needle
     {
       void setup();
-      void reset();
-      bool force_reset = true;
+      //void reset();
+      //bool force_reset = true;
       bool needs_redraw();
       void onThemeChange();
-      void set( float _angle );
+      void setAngle( float _angle );
+      void setLabel( String label );
       void draw( bool force_redraw = false );
-      void draw(float_t angle, uint16_t a = 0, uint16_t b = 200, uint16_t c = 0, uint16_t d = 100); // Print needle
+      void drawLabel( String label );
+      void drawNeedle(float_t angle ); // Print needle
+    };
+
+
+    namespace Network
+    {
+      bool needs_redraw();
+      void drawMessage();
+      void drawTX();
+      void drawComm();
+      void draw( bool force_redraw = false );
     };
 
 
@@ -81,7 +99,7 @@ namespace ICSMeter
     {
       bool   dialog_enabled = false;
       int8_t choice = 0;
-      void   draw();
+      void   draw( bool force_redraw = false );
       void   loop(); // called from task
       void   handleSettings();
       void   handleBrowsing();

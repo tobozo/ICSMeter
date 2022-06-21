@@ -1,6 +1,7 @@
 #include "../ICSMeter.hpp"
 #include "../../UI/Themes/Themes.hpp"
 #include "../../UI/Widgets.hpp"
+#include "../../net/Daemon.hpp"
 
 namespace ICSMeter
 {
@@ -14,8 +15,19 @@ namespace ICSMeter
     {
       using namespace UI;
       using namespace modules;
+      using namespace net;
 
       preferences.begin(NAME);
+
+      // ok donc 4 choix d'IC:
+      // IC7300 (WiFi)
+      // IC9700 (WiFi)
+      // IC705 (WiFi)
+      // IC705 (Bluetooth)
+      // et un choix +/- pour la CI-V address
+
+
+      CIV::setup();
 
       BackLight::setup();
       FastLed::setup();
@@ -25,7 +37,6 @@ namespace ICSMeter
       Needle::setup();
       Measure::setup();
       Transverter::setup();
-
       preferences.end();
     }
 

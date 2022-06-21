@@ -40,6 +40,7 @@ demo_mode      = 0 # use this when no IC is actually connected, will send dummy 
 
 UARTS      = [] # UART's are shared between HTTP Server and WebSockets/Serial thread, but also across M5 Devices
 uart_count = 0
+subscriptions_count = 0
 M5Clients  = [] # M5Stack devices with registered subscriptions
 connected_serial_ports = [] # currently connected COM/tty ports, repopulated every second
 last_message = "" # to avoid repeated messages in the console
@@ -47,45 +48,46 @@ last_message = "" # to avoid repeated messages in the console
 
 
 
-def demo_response( clt_address, msg ):
-    if   msg == '03fd':   # CIV_CHECK (ping)
-        return 'fefee0' + clt_address + '030050973404fd' # pong !
+def demo_response( in_address, out_address, msg ):
+    if   msg == '03fd' or msg == '03fd00':   # CIV_CHECK (ping)
+        return 'fefe' + out_address + in_address + '1c0001fd' # pong !
     elif msg == '1c00fd': # CIV_GET_TX // Send/read the transceiver’s status (00=RX, 01=TX)
         #    1c00fd --> fefee0' + clt_address + '1c0000fd (TX OFF)
         #    1c00fd --> fefee0' + clt_address + '1c0001fd (TX ON)
-        return 'fefee0' + clt_address + '1c0001fd'
+        return 'fefe' + out_address + in_address + '1c0001fd'
     elif msg == 'e004fd': # CIV_GET_MOD
         #    e004fd --> fefee0' + clt_address + '040501fd (FIL1, FM)
         #    e004fd --> fefee0' + clt_address + '040502fd (FIL2, FM)
         #    e004fd --> fefee0' + clt_address + '040103fd (FIL3, USB)
         mod = random.choice(['040501fd', '040502fd', '040103fd'])
-        return 'fefee0' + clt_address + mod
+        return 'fefe' + out_address + in_address + mod
     elif msg == 'e003fd': # CIV_GET_FRQ
         #    e003fd --> fefee0' + clt_address + '030050973404fd (434.975.000)
         #    e003fd --> fefee0' + clt_address + '030000504501fd (145.500.000)
         freq =  '0300{0:0{1}x}fd'.format( int( random.uniform( 0x00504501, 0x50973404 ) ), 8 )
-        return 'fefee0' + clt_address + freq
+        return 'fefe' + out_address + in_address + freq
     elif msg == '1502fd': # CIV_GET_SMETER // Read S-meter level (0000=S0, 0120=S9, 0241=S9+60 dB)
         #    1502fd --> fefee0' + clt_address + '15020000fd (valeur du SMetre --> 0000)
         #    1502fd --> fefee0' + clt_address + '15020192fd (valeur du SMetre --> 0192)
-        smeter = '15020{0:0{1}x}fd'.format( int( random.uniform( 0x00, 0x192 ) ), 3 )
-        return 'fefee0' + clt_address + smeter
+        smeter = '1502{0:04d}fd'.format( int( random.uniform( 0, 192 ) ) )
+        return 'fefe' + out_address + in_address + smeter
     elif msg == '1511fd': # CIV_GET_PWR // Read the Po meter level (0000=0% ~ 0143=50% ~ 0213=100%)
         #    1511fd --> fefee0' + clt_address + '15110000fd (valeur du PWR --> 0000)
         #    1511fd --> fefee0' + clt_address + '15110074fd (valeur du PWR --> 0074)
-        pwr = '151100{0:0{1}x}fd'.format( int( random.uniform( 0x00, 0x74 ) ), 2 )
-        return 'fefee0' + clt_address + pwr
+        pwr = '151100{0:02d}fd'.format( int( random.uniform( 0, 74 ) ) )
+        return 'fefe' + out_address + in_address + pwr
     elif msg == '1512fd': # CIV_GET_SWR // Read SWR meter level (0000=SWR1.0, 0048=SWR1.5, 0080=SWR2.0, 0120=SWR3.0)
         #    1512fd --> fefee0' + clt_address + '15120000fd (valeur du SWR --> 0000)
         #    1512fd --> fefee0' + clt_address + '15120027fd (valeur du SWR --> 0027)
-        swr = '151200{0:0{1}x}fd'.format( int( random.uniform( 0x00, 0x27 ) ), 2 )
-        return 'fefee0' + clt_address + '15120000fd'
+        swr = '151200{0:02d}fd'.format( int( random.uniform( 0, 27 ) ) )
+        return 'fefe' + out_address + in_address + '15120000fd'
     elif msg == '1a06fd': # CIV_GET_DATA_MODE // Send/read the DATA mode setting
         #    1a06fd --> fefee0' + clt_address + '1a060000fd (Mode Data désacté)
         #    1a06fd --> fefee0' + clt_address + '1a060101fd (Mod Data activé)
-        return 'fefee0' + clt_address + '1a060101fd'
+        return 'fefe' + out_address + in_address + '1a060101fd'
     else:
-        return '??????fd'
+        #print( clt_address, msg )
+        return False
 
 
 last_error = ''
@@ -99,7 +101,7 @@ def ConsolePrintError( e ):
 
 last_message = ''
 def ConsolePrintMessage( msg, error=None ):
-    global last_message
+    global last_message, server_verbose
     if error!=None:
       ConsolePrintError( error )
     if server_verbose == 1 and last_message != msg:
@@ -130,6 +132,7 @@ class M5Socket():
 # Subscriptions are stored in in M5Socket().subscriptions as an array
 class Subscription():
     def __init__(self):
+        self.id            = None # Unique ID for subscription
         self.cmd           = None # CIV command, e.g. 'fefea4e01502fd'
         self.uart          = None # UART() shared object
         self.freq          = None # Polling frequency
@@ -151,16 +154,15 @@ def initSerial( tty, bauds ):
 
 def GetCIVResponse( request, response_data ):
     response = ''
-    for value in data:
+    for value in response_data:
         response += '{:02x}'.format(value)
-
     # test: 2 first bytes must match, bytes 3 and 4 are swapped
-    if response[:4]!=request[:4] or response[4:2]!=request[6:2] or response[6:2]!=request[4:2]:
-        ConsolePrintMessage( 'invalid packet')
-    elif len(data) > 0 and data[-1] == 0xfd: # packet terminator
+    if response[0:4]!=request[0:4] or response[4:6]!=request[6:8] or response[6:8]!=request[4:6]:
+        ConsolePrintError( 'invalid packet')
+    elif len(response_data) > 0 and response_data[-1] == 0xfd: # packet terminator
         return response
     else:
-        ConsolePrintMessage( 'unterminated packet')
+        ConsolePrintError( 'unterminated packet')
     return ''
 
 
@@ -180,14 +182,18 @@ def WSEmit( client, message ):
 
 
 
-def Poll( subscription ):
+def Poll( M5Client, subscription ):
 
     if subscription.uart.serial == None:
-        ConsolePrintMessage( "opening uart" )
         try:
             subscription.uart.serial = initSerial(  subscription.uart.tty, subscription.uart.bauds )
+            if subscription.uart.serial !=None:
+                ConsolePrintMessage( "Opening UART " + subscription.uart.tty + " succeeded" )
+            else:
+                return False
+            #return True
         except Exception as e:
-            ConsolePrintMessage("Opening UART failed")
+            ConsolePrintMessage("Opening UART " + subscription.uart.tty + " failed")
             return False
 
     # previous attempt to connect to serial failed, no need to go further
@@ -196,12 +202,16 @@ def Poll( subscription ):
         return False
 
     try:
-        packet = bytearray.fromhex(subscription.cmd)
+        try:
+            packet = bytearray.fromhex(subscription.cmd)
+        except:
+            ConsolePrintMessage("Invalid subscription packet: " + subscription.cmd)
+            return False
         subscription.uart.serial.write( packet )
         data = subscription.uart.serial.read(size=16) # Set size to something high
         response = GetCIVResponse( subscription.cmd, data )
         if response == '' or response == None:
-            ConsolePrintMessage(['Invalid data: ', data])
+            # ConsolePrintMessage(['Invalid data: ', data])
             return False
         else:
             if subscription.last_response != response:
@@ -211,21 +221,34 @@ def Poll( subscription ):
             return True
     except Exception as e:
         subscription.uart.serial = None
-        ConsolePrintMessage("UART disconnected")
+        ConsolePrintMessage("UART disconnected", e)
         WSEmit( M5Client, "UART DOWN" )
         return False
 
 
 
 
+def HasPort( device ):
+    global connected_serial_ports
+    for port in connected_serial_ports:
+        if device == port[0]:
+
+            return True
+    return False
+
+
+
 # daemon
 def PortsEnumerator():
-    global connected_serial_ports
+    global UARTS, connected_serial_ports
     while True:
         tmp_ports = [tuple(p) for p in list(serial.tools.list_ports.comports())]
         if len(tmp_ports)>len(connected_serial_ports):
             new_device = list(set(tmp_ports) - set(connected_serial_ports))
             ConsolePrintMessage(["New Device(s): ", new_device] )
+            for uart in UARTS:
+                if uart.tty == new_device[0]:
+                    uart.serial = initSerial(  uart.tty, uart.bauds )
         elif len(tmp_ports)<len(connected_serial_ports):
             old_device = list(set(connected_serial_ports) - set(tmp_ports))
             ConsolePrintMessage(["Device(s) removed: ", old_device] )
@@ -247,26 +270,29 @@ def UARTPoller():
             for subscription in M5Client.subscriptions:
                 sleep_time = min( subscription.freq, sleep_time )
                 now = time.time()
-                if subscription.uart.tty in connected_serial_ports:
-                    if subscription.last_poll + subscription.freq < now:
-
+                if subscription.last_poll + subscription.freq < now:
+                    subscription.last_poll = now
+                    if HasPort( subscription.uart.tty ) == True:
                         # get mutex to avoid collision with the main thread
                         subscription.uart.mutex.acquire()
-
-                        ConsolePrintMessage( "polling" )
-                        if Poll( subscription ) != True:
+                        if Poll( M5Client, subscription ) != True:
                             ConsolePrintMessage("UART offline")
                             WSEmit( M5Client, "UART DOWN" )
-
-                        subscription.last_poll = now
-
                         subscription.uart.mutex.release()
 
                         if subscription.freq == 0: # one time subscription self-deletes after use
                             M5Client.subscriptions.remove( subscription )
-                else:
-                    ConsolePrintMessage( subscription.uart.tty + " is not available" )
-                    WSEmit( M5Client, "UART DOWN" )
+                    else:
+                        if demo_mode == 1:
+                            cmd = str(subscription.cmd)
+                            resp = demo_response( cmd[4:6], cmd[6:8], cmd[8:14] )
+                            if resp != False:
+                                WSEmit( M5Client, resp )
+                            else:
+                                print("Bad command ",  cmd[6:8], cmd[8:14] )
+                        else:
+                            ConsolePrintError( subscription.uart.tty + " is not available" )
+                            WSEmit( M5Client, "UART DOWN" )
 
         time.sleep( sleep_time ) # avoid loopbacks
 
@@ -297,7 +323,7 @@ class S(BaseHTTPRequestHandler):
 
     def do_POST(self):
 
-        global uart_count
+        global uart_count, subscriptions_count, M5Clients
 
         M5Client = None
         ICUART   = None
@@ -360,21 +386,23 @@ class S(BaseHTTPRequestHandler):
                 if subscription.uart.id == sub.uart.id and subscription.cmd == sub.cmd:
                     #print("Subscription already exists!")
                     self._set_response()
-                    self.wfile.write("{}".format(sub.uart.id).encode('utf-8'))
+                    self.wfile.write("{}".format(subscription.id).encode('utf-8'))
                     return
+            sub.id = subscriptions_count
             M5Client.subscriptions.append( sub )
-            ConsolePrintMessage("Added subscription")
+            subscriptions_count = subscriptions_count + 1
+            ConsolePrintMessage("Added subscription#" + str(sub.id) + ": poll " + sub.uart.tty + " with command " + sub.cmd + " every " + str( sub.freq ) + " second(s)" )
             self._set_response()
-            self.wfile.write("{}".format(sub.uart.id).encode('utf-8'))
+            self.wfile.write("{}".format(sub.id).encode('utf-8'))
 
         elif self.path == '/unsubscribe':
             for idx, subscription in enumerate(M5Client.subscriptions):
                 if subscription.uart.id == sub.uart.id and subscription.cmd == sub.cmd:
                     self._set_response()
                     M5Client.subscriptions.remove( subscription )
-                    ConsolePrintMessage("Removed subscription")
+                    ConsolePrintMessage("Removed subscription: " + sub.cmd )
                     return
-            ConsolePrintMessage("Subscription didn't exist!")
+            ConsolePrintMessage("Subscription " + sub.cmd + " doesn't exist or has already been removed")
             self._set_error()
 
         else:
@@ -384,6 +412,7 @@ class S(BaseHTTPRequestHandler):
 
     def do_GET(self):
         global uart_count
+        global connected_serial_ports
         if server_verbose > 1:
             logging.info("GET request,\nPath: %s\nHeaders:\n%s\n", str(self.path), str(self.headers))
 
@@ -407,6 +436,7 @@ class S(BaseHTTPRequestHandler):
             client_serial   = civ.pop()
             client_baudrate = civ.pop()
             clt_address  = civ[2]
+            civ_address  = civ[3]
 
             if demo_mode > 0:
                 self._set_response()
@@ -422,12 +452,20 @@ class S(BaseHTTPRequestHandler):
                 for value in civ:
                     civ_msg += '{:02x}'.format(int(value, 16))
 
-                response = demo_response( clt_address, civ_msg )
+                response = demo_response( clt_address, civ_address, civ_msg )
+                if response == False:
+                    response = ''
 
                 if server_verbose > 0:
                     ConsolePrintMessage('<< Received CIV packet: ' +civ_msg )
                     ConsolePrintMessage('>> Sending response: ' +response)
                 self.wfile.write("{}".format( response ).encode('utf-8'))
+                return
+
+            if HasPort( client_serial ) != True:
+                ConsolePrintMessage('Serial device ' + client_serial + ' is down...')
+                self._set_error()
+                self.wfile.write("{}".format("UART DOWN").encode('utf-8'))
                 return
 
 
@@ -440,6 +478,9 @@ class S(BaseHTTPRequestHandler):
                 for value in civ:
                     command.append(int(value, 16))
 
+                # get mutex to avoid collision with the websocket thread
+                uart.mutex.acquire()
+
                 for uart in UARTS:
                     if uart.tty == client_serial and uart.bauds == client_baudrate:
                         usb = uart.serial
@@ -450,14 +491,10 @@ class S(BaseHTTPRequestHandler):
                     uart.bauds  = client_baudrate
                     uart.id     = uart_count
                     uart.mutex  = Lock()
-                    uart.serial = serial.Serial(client_serial, client_baudrate, timeout=client_timeout)
-                    last_poll   = time.time()
+                    uart.serial = initSerial(client_serial, client_baudrate)
                     uart_count  = uart_count+1
                     UARTS.append( uart )
                     usb = uart.serial
-
-                # get mutex to avoid collision with the websocket thread
-                uart.mutex.acquire()
 
                 usb.write(serial.to_bytes(command))
                 data = usb.read(size=16) # Set size to something high
@@ -468,7 +505,7 @@ class S(BaseHTTPRequestHandler):
                     response += '{:02x}'.format(value)
 
                 # Check if bad response
-                if(response == "fefee0" + clt_address + "fafd"):
+                if(response == "fefe" + civ_address + clt_address + "fafd"):
                     response = ''
 
                 if server_verbose > 0:
@@ -490,6 +527,8 @@ class S(BaseHTTPRequestHandler):
         try:
             self._set_response()
             self.wfile.write("{}".format(response).encode('utf-8'))
+            ConsolePrintMessage('>> Sending 200 response: ' +response)
+
         except Exception as e:
             ConsolePrintMessage("Empty response", e)
             self._set_error()
@@ -504,16 +543,18 @@ def run(server_class=HTTPServer, handler_class=S, port=1234):
         logging.basicConfig(level=logging.INFO)
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
-    print('Starting ' + name + ' v' + version + ' HTTPD on Port', port)
+    print('Starting ' + name + ' v' + version + ' WebSocket Client and HTTPD Server on Port', port)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
         pass
     httpd.server_close()
 
+    print("\n")
     # close all open UARTS
     for uart in UARTS:
         if uart.serial != None:
+            print("Closing UART " + uart.tty )
             uart.serial.close()
 
     print('Stopping ' + name + ' v' + version + ' HTTPD...\n')

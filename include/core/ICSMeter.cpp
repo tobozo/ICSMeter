@@ -7,13 +7,14 @@
 #include "modules/Prefs.cpp"
 #include "modules/Updater.cpp"
 
-#if IC_CONNECT==BT && IC_MODEL==705
-  #include "../net/protocols/Bluetooth.cpp"
-#endif
-#include "../net/protocols/WiFi.cpp"
+#include "../net/protocols/Bluetooth.cpp"
 #include "../net/protocols/CI-V.cpp"
-#include "../net/services/Screenshots.cpp"
+#include "../net/protocols/WiFi.cpp"
 #include "../net/services/Proxy.cpp"
+#include "../net/services/Screenshots.cpp"
+#include "../net/services/WebClient.cpp"
+#include "../net/services/WebServer.cpp"
+
 #include "../net/Daemon.cpp"
 
 #include "../UI/Helpers/CSS.cpp"
@@ -22,6 +23,7 @@
 #include "../UI/Widgets/DataMode.cpp"
 #include "../UI/Widgets/Measure.cpp"
 #include "../UI/Widgets/Needle.cpp"
+#include "../UI/Widgets/Network.cpp"
 #include "../UI/Widgets/ScreenSaver.cpp"
 #include "../UI/Widgets/Settings.cpp"
 #include "../UI/Widgets/Transverter.cpp"
@@ -48,18 +50,15 @@ namespace ICSMeter
     FSUpdater::binLoader();
 
     UI::setup();
-    UI::drawWidgets( true );
 
-    xTaskCreatePinnedToCore( daemon::netTask, "netTask", 8192, NULL, 0, NULL, 0);
-
+    xTaskCreatePinnedToCore( daemon::daemonTask, "daemonTask", 8192, NULL, 1, NULL, 0);
   }
 
 
   void loop() // Main Loop
   {
-    buttons::loop();   // handle buttons
-    if( buttons::hasBubble() ) {
-      ScreenSaver::resetTimer();
+    if( WebServer::OTA_enabled ) {
+      ArduinoOTA.handle();
     }
 
     Beeper::loop();    // handle beep
@@ -68,41 +67,14 @@ namespace ICSMeter
                   // and prevent further screen capture to be performed while drawing
                   // until giveLcdMux() is called
 
-    ScreenSaver::loop(); // check if Screen Saver needs enabling
-    if( ScreenSaver::isEnabled() ) goto _giveMux;
+    buttons::loop();   // handle buttons
+    if( buttons::hasBubble() ) {
+      ScreenSaver::resetTimer();
+    }
 
-    Settings::loop();
-    if( Settings::dialog_enabled ) goto _giveMux;
+    UI::loop();
 
-    #if defined DEMO_MODE
-      /********** Needle DEMO MODE BEGIN ******/
-      DataMode::setFilter( "FIL1" );
-      DataMode::setMode( "USB" );
-      Measure::setPrimaryValue( "S 9.06 db");
-      Measure::setSecondaryValue( "14.235.000" );
-
-      static float random_angle = 0.0;
-      Needle::ICSGauge->easeNeedle( 300 ); // 300ms easing
-      if( (millis()/1259)%2== 0 ) {
-        random_angle = ( (rand()%9000) / 100.0 ); // [0...90] with 2 digits decimal precision
-        Needle::ICSGauge->setNeedle( random_angle );
-        UI::drawWidgets();
-      }
-      /********** Needle DEMO MODE END ******/
-       goto _giveMux;
-    #endif
-
-    daemon::loop();
-
-
-    _giveMux:
     giveLcdMux();
-
-  }
-
-
-  void checkButtons()
-  {
 
   }
 

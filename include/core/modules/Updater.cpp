@@ -10,6 +10,7 @@ namespace ICSMeter
 
     using namespace UI;
     using namespace CSS;
+    using namespace modules;
     using namespace modules::buttons;
 
     constexpr const char* SPIFFS_MSG1           = "Flash File System";
@@ -124,8 +125,8 @@ namespace ICSMeter
 
       CSS::drawStyledString( &tft, "Scanning Filesystem", 160, 20, &StyleH1 );
 
-      if (SPIFFS.begin()) {
-        getBinaryList( &SPIFFS );
+      if (FLASH_FS.begin()) {
+        getBinaryList( &FLASH_FS );
       } else {
 
         size_t msgCount = sizeof( SPIFFS_MESSAGES ) / sizeof( const char* );
@@ -136,7 +137,7 @@ namespace ICSMeter
         }
         Serial.println( SPIFFS_MSG_MOUNTFAIL );
         Serial.println( SPIFFS_MSG_FORMATTING );
-        SPIFFS.format(); // Format SPIFFS...
+        FLASH_FS.format(); // Format SPIFFS...
         tft.clear();
       }
 
@@ -153,7 +154,7 @@ namespace ICSMeter
 
         for (uint8_t i = TIMEOUT_BIN_LOADER * 10; i > 0; i--) {
 
-          checkButtons();
+          buttons::loop();
 
           if (i % 10 == 0) {
             tmpName += ".";
@@ -177,12 +178,11 @@ namespace ICSMeter
 
       while (click == 1) {
         while (btnB != 0) {
-
-          checkButtons();
+          buttons::loop();
           vTaskDelay(100);
         }
 
-        checkButtons();
+        buttons::loop();
 
         if (btnA) {
           cursor--;
@@ -237,7 +237,7 @@ namespace ICSMeter
             if (cursor == j) {
               tmpName = ">> " + tmpName + " <<";
 
-              if (binFileNames[cursor].fs == &SPIFFS ) {
+              if (binFileNames[cursor].fs == &FLASH_FS ) {
                 CSS::drawStyledString( &tft, BIN_LOADER_SPI, 160, 50, &StyleH2 );
               } else {
                 CSS::drawStyledString( &tft, BIN_LOADER_SD, 160, 50, &StyleH2 );

@@ -8,13 +8,48 @@ namespace ICSMeter
     namespace DataMode
     {
 
+      using namespace net;
+
+      constexpr const char *datamode  = &CIV::status.datamode;
+      constexpr const uint8_t *mode   = &CIV::status.mode;
+      constexpr const uint8_t *filter = &CIV::status.filter;
+      constexpr clipRect_t _modeCR   = { 240, 198, 40, 15 };
+      constexpr clipRect_t _filterCR = { 40, 198, 40, 15 };
+
+      // cache
+      uint8_t old_datamode;
+      uint8_t old_mode;
+      uint8_t old_filter;
+
       String valueFilter, valueMode;
-      String oldValueFilter, oldValueMode;
+
+
+      bool filter_needs_redraw()
+      {
+        return *datamode != old_datamode || *filter != old_filter;
+      }
+
+      bool mode_needs_redraw()
+      {
+        return *mode != old_mode;
+      }
 
 
       bool needs_redraw()
       {
-        return (valueFilter!=oldValueFilter || valueMode!=oldValueMode);
+        updateValues();
+        if( filter_needs_redraw() || mode_needs_redraw() ) {
+          return true;
+        }
+
+        return false;
+      }
+
+
+      void updateValues()
+      {
+        setFilter( CIV::getFilterLabel() );
+        setMode(    CIV::getModeLabel()  );
       }
 
 
@@ -32,15 +67,17 @@ namespace ICSMeter
 
       void draw( bool force_redraw )
       {
-        if( force_redraw || valueFilter!=oldValueFilter ) {
+        if( !needs_redraw() && !force_redraw ) return;
+        if( filter_needs_redraw() || force_redraw ) {
           if( valueFilter!="" )
-            CSS::drawStyledBox( &tft, valueFilter.c_str(), 40, 198, 40, 15, &Theme::BadgeBoxStyle );
-          oldValueFilter = valueFilter;
+            CSS::drawStyledBox( &tft, valueFilter.c_str(), _modeCR.x, _modeCR.y, _modeCR.w, _modeCR.h, &Theme::BadgeBoxStyle );
+          old_filter   = *filter;
         }
-        if( force_redraw || valueMode!=oldValueMode ) {
+        if( mode_needs_redraw() || force_redraw ) {
           if( valueMode!="" )
-            CSS::drawStyledBox( &tft, valueMode.c_str(), 240, 198, 40, 15, &Theme::BadgeBoxStyle );
-          oldValueMode = valueMode;
+            CSS::drawStyledBox( &tft, valueMode.c_str(), _filterCR.x, _filterCR.y, _filterCR.w, _filterCR.h, &Theme::BadgeBoxStyle );
+          old_datamode = *datamode;
+          old_mode     = *mode;
         }
       }
 

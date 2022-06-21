@@ -21,39 +21,15 @@ namespace ICSMeter
       uint32_t tx_last_poll      = millis();
       static uint8_t tx = 0;
 
-
       void setup()
       {
-        proxy::agent.setup();
-      }
-
-
-      void loop()
-      {
-        using namespace modules;
-
-        if( daemon::connected() ) {
-
-          if(tx != 0) {
-            log_i("Drawing widgets");
-            ScreenSaver::resetTimer(); // If transmit, refresh tempo
-            FastLed::set( tx );
-            UI::drawWidgets();
-            tx = 0;
-          }
-
-        } else {
-
-          if( UI::canDraw() ) {
-            static bool active_state = false;
-            bool state = (millis()/773)%2==0;
-            if( active_state != state ) {
-              CSS::drawStyledString( &tft, state ? message : "", 160, 180, Theme::H3FontStyle );
-              active_state = state;
-            }
-          }
-
+        daemon::agent = CIV::IC->type == IC_COMM_BLUETOOTH ? &bluetooth::agent : &wifi::agent;
+        daemon::agent->setup();
+        while( !daemon::agent->available() ) {
+          // TODO: timeout this
+          vTaskDelay(1);
         }
+        log_i("Daemon setup complete");
       }
 
 
@@ -63,25 +39,41 @@ namespace ICSMeter
       }
 
 
-      void netTask(void *pvParameters)
+      void daemonTask(void *pvParameters)
       {
+        using namespace modules;
         daemon::setup();
 
         for (;;) {
 
-          //screenshot::check(); // check for queued screenshot request
+          CIV::loop();
+          daemon::agent->loop();
 
-          daemon::check(); // check for wifi/ble/proxy health
+          if( CIV::txConnected ) {
+            if(CIV::status.tx != 0) {
+              ScreenSaver::resetTimer();
+              FastLed::set( CIV::status.tx );
+              CIV::status.tx = 0;
+            }
+          } else {
+            if( !daemon::agent->available() ) {
+              // tx lost because link lost (WiFi or BLE)
+            } else {
+              // tx lost because IC off or python proxy down
+            }
+
+
+          }
 
           vTaskDelay( 10 );
         }
       }
 
-
+/*
       void check() // called from task, may induce network blocking operations
       {
-        if( ! proxy::agent.available() ) { // link check
-          message = proxy::agent.message;
+        if( ! daemon::agent.available() ) { // link check
+          message = daemon::agent.message;
           return;
         }
 
@@ -110,49 +102,26 @@ namespace ICSMeter
           }
           tx_last_poll = millis();
         }
-
-
-//         if ( daemon::needsPairing() ) {
-//           message = MSG_NEEDPAIRING;
-//         } else if ( daemon::needsWiFiChecked() ) {
-//           message = MSG_CHECKWIFI;
-//         } else if ( daemon::needsProxyChecked() ) {
-//           if( ScreenSaver::isAwake() ) {
-//             message = proxy::checkStatus();
-//           } else {
-//             message = proxy::MSG_CHECKTX; // won't be displayed but error state needs to be maintained
-//           }
-//         } else {
-//           message = nullptr;
-//           if( tx_last_poll + tx_poll_frequency < millis() ) {
-//             tx = CIV::getTX();
-//             if(tx != 0) {
-//               proxy::last_check = millis();
-//               daemon::ICScan(); // query all statuses
-//             }
-//             tx_last_poll = millis();
-//           }
-//         }
       }
-
-
-      void clearData() // lost in refactoring
-      {
-        Needle::reset();
-        Measure::reset();
-        Battery::reset();
-      }
+*/
 
 
       void ICScan() // called from main loop
       {
-        setMode();
-        setFrequency();
-        switch (Measure::value) {
-          case 0: setPower();  break;
-          case 1: setSmeter(); break;
-          case 2: setSWR();    break;
-          default: /* duh? */  break;
+        if( WebClient::has_subscriptions ) return; // CIV updates are coming via async websocket
+
+        // no websocket on the proxy (yet?), query via synchroneous HTTP
+
+        CIV::getMode();
+        CIV::getFrequency();
+        switch( Measure::mode ) {
+          case Measure::MODE_PWR: CIV::getPower();  break;
+          case Measure::MODE_SMT: CIV::getSmeter(); break;
+          case Measure::MODE_SWR: CIV::getSWR();    break;
+          default:
+            // this can't happen since Measure::mode is enum, but who knows?
+            log_e("Unsupported measure mode: 0x%02x",  Measure::mode );
+          break;
         }
       }
 
@@ -167,83 +136,11 @@ namespace ICSMeter
           log_w("Dispatch request while proxy is offline???");
           return false;
         }
-        bool ret = proxy::agent.sendCommand(request, request_size, response, response_size);
+        bool ret = daemon::agent->sendCommand(request, request_size, response, response_size);
         if( ret ) proxy::last_check = millis();
         return ret;
       }
 
-
-      void setSmeter()
-      {
-        CIV::GaugeMeasure_t GaugeMeasure = CIV::getSmeter();
-        if( GaugeMeasure.label != "" ) {
-          Needle::set( GaugeMeasure.angle );
-          Measure::setPrimaryValue( GaugeMeasure.label );
-        }
-      }
-
-
-      void setSWR()
-      {
-        CIV::GaugeMeasure_t GaugeMeasure = CIV::getSWR();
-        if( GaugeMeasure.label != "" ) {
-          Needle::set( GaugeMeasure.angle );
-          Measure::setPrimaryValue( GaugeMeasure.label );
-        }
-      }
-
-
-      void setPower()
-      {
-        CIV::GaugeMeasure_t GaugeMeasure = CIV::getPower();
-        if( GaugeMeasure.label != "" ) {
-          Needle::set( GaugeMeasure.angle );
-          Measure::setPrimaryValue( GaugeMeasure.label );
-        }
-      }
-
-
-      void setDataMode()
-      {
-        DataMode::mode = CIV::getDataMode();
-      }
-
-
-      void setFrequency()
-      {
-        Measure::setSecondaryValue( CIV::getFrequency() );
-      }
-
-
-      void setMode()
-      {
-        CIV::FilterMode_t FilterMode = CIV::getMode();
-        DataMode::setFilter( FilterMode.filter );
-        DataMode::setMode( FilterMode.mode );
-      }
-
-
-      // some boolean verbs for user config specifics
-
-      bool hasBluetooth()
-      {
-        return IC_MODEL == 705 && IC_CONNECT == BT;
-      }
-
-      bool needsPairing()
-      {
-        return (hasBluetooth() && !bluetooth::available());
-      }
-
-      bool needsWiFiChecked()
-      {
-        return (IC_CONNECT == USB && !wifi::available());
-      }
-
-      bool needsProxyChecked()
-      {
-        return (IC_CONNECT == USB && (proxy::available() || !proxy::connected()));
-      }
 
 
     };

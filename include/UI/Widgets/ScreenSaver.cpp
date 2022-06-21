@@ -67,10 +67,12 @@ namespace ICSMeter
       void loop()
       {
         if( ScreenSaver::shouldSleep() ) { // IC or timer signal
+          log_i("shouldSleep()==true, will sleep");
           ScreenSaver::sleep();
           return;
         }
-        if( ( ScreenSaver::isAsleep() || ScreenSaver::isEnabled() ) && ScreenSaver::shouldWakeup()) { // proxy or buttons
+        if( ( ScreenSaver::isAsleep() || ScreenSaver::isEnabled() ) && ScreenSaver::shouldWakeup() ) { // proxy or buttons
+          log_i("shouldWakeup()==true, will wakeup");
           ScreenSaver::wakeup();
           return;
         }
@@ -82,7 +84,7 @@ namespace ICSMeter
           return;
         }
 
-        if( timer != 0 ) { // wakeup/disable signal
+        if( !ScreenSaver::isDisabled() && timer != 0 ) { // wakeup/disable signal
           ScreenSaver::disable();
           return;
         }
@@ -103,22 +105,28 @@ namespace ICSMeter
 
       bool shouldSleep() // sleep signal comes either from IC being turned off (depends on proxy) or by timer
       {
-        if( ScreenSaver::isAsleep() ) return false; // already sleeping
-        if( ScreenSaver::isAwake() && proxy::available() && proxy::had_success // tft must be awake to go to sleep
-            && ( ( IC_CONNECT == BT && !bluetooth::available()) || ( IC_CONNECT == USB && !proxy::connected() ) ) ) return true;
+        if( ScreenSaver::isAsleep() ) {
+          log_w("Already sleeping");
+          return false; // already sleeping
+        }
+        if( ScreenSaver::isAwake() && proxy::available() && CIV::had_success // tft must be awake to go to sleep
+            && ( ( CIV::IC->type == IC_COMM_BLUETOOTH && !bluetooth::available()) || ( CIV::IC->type == IC_COMM_WIFI && !proxy::available() ) ) ) {
+          log_i("is awake and should sleep");
+          return true;
+        }
         uint32_t elapsed = millis() - timer; // elapsed time since last timer reset
+        //log_i( "is awake and timer sleep (%d/%d)", elapsed, milliseconds_countdown*2 );
         return elapsed > milliseconds_countdown*2;
       }
 
       bool shouldWakeup() // wakeup signal comes from proxy, buttons, or timer
       {
-        //bool buttons_pushed = ( buttons::btnA || buttons::btnB || buttons::btnC );
         if( ScreenSaver::isAwake() && ScreenSaver::isDisabled() ) return false; // already awake and not saving screen
         if( ScreenSaver::isAwake() && ScreenSaver::isEnabled() ) return buttons::hasBubble(); // already awake and saving screen
         if( ScreenSaver::isAsleep() && buttons::hasBubble() ) return true; // sleeping and waiting for button push
         if( ScreenSaver::isAsleep() || ScreenSaver::isEnabled() ) return timer != 0; // timer has been reset
         if( ScreenSaver::isAsleep() && proxy::available() ) { // sleeping and waiting for proxy coming online
-          return ( ( IC_CONNECT == BT && bluetooth::available() ) || ( IC_CONNECT == USB && !proxy::connected() ) ); // BT became avail or proxy disconnected
+          return ( ( CIV::IC->type == IC_COMM_BLUETOOTH && bluetooth::available() ) || ( CIV::IC->type == IC_COMM_WIFI && !proxy::available() ) ); // BT became avail or proxy disconnected
         }
         return false; // nothing-happenness
       }
@@ -144,7 +152,7 @@ namespace ICSMeter
           ScreenSaver::wakeup();
         }
         BackLight::setBrightness( old_brightness );
-        UI::drawWidgets( true );
+        UI::draw( true );
       }
 
 

@@ -11,11 +11,13 @@ namespace ICSMeter
       using namespace proxy;
       using namespace daemon;
 
-      WiFiClient civClient;
+      //WiFiClient civClient;
 
       constexpr const char* MSG_WIFI_UP   = "Wifi Client Connected";
       constexpr const char* MSG_WIFI_DOWN = "Wifi Client disconnected";
       constexpr const char* MSG_CHECKWIFI = "Check Wifi";
+
+      comm_struct_t agent = { wifi::setup, wifi::loop, wifi::available, WebClient::sendCommand, wifi::message };
 
       char wifi_ssid[33];
       char wifi_pass[64];
@@ -23,13 +25,15 @@ namespace ICSMeter
       const uint32_t max_reconnect_attempts = 10;
       uint32_t connect_attempts = 0;
       bool connected = false;
+      bool was_connected = false;
       bool has_credentials = ( strcmp( WIFI_SSID, "YOUR WIFI SSID" )!=0 && strcmp( WIFI_PASSWORD, "YOUR WIFI PASSWORD" )!=0 );
       bool setup_done = false;
-      const char* message = MSG_CHECKWIFI;
+      //const char* message = MSG_CHECKWIFI;
 
 
       void setup()
       {
+        daemon::message = MSG_CHECKWIFI;
         if( !setup_done ) {
           if( !has_credentials ) {
             if( loadCredentials( wifi_ssid, wifi_pass ) ) {
@@ -51,6 +55,43 @@ namespace ICSMeter
           setup_done = true;
         }
         begin();
+      }
+
+
+      void loop()
+      {
+        static uint32_t retrytimer = millis();
+        static uint32_t retries = 50;
+
+
+        if( !wifi::connected && wifi::was_connected ) {
+          // lost wifi connection
+          // TODO: ESP set deep sleep( wake by touch int )
+          return;
+        }
+
+
+        if( !CIV::txConnected && CIV::last_poll + CIV::poll_timeout < millis() ) {
+          if( CIV::had_success ) {
+
+            if( retries == 0 ) {
+              // TODO: full sleep
+              log_e("Max retries reached, giving up");
+              return;
+            }
+
+            const uint32_t now = millis();
+            const uint32_t retryafter = 5000;
+            if( retrytimer + retryafter < millis() ) {
+              // retry subscriptions
+              WebClient::setup();
+              retrytimer = millis();
+            }
+          }
+        } else {
+          retries = 50;
+          retrytimer = millis();
+        }
       }
 
 
@@ -140,99 +181,6 @@ namespace ICSMeter
       }
 
 
-      // Send CI-V Command by Wifi
-      bool sendCommand( char *request, size_t request_size, char *resp, uint8_t response_size )
-      {
-        if( !available() ) {
-          log_e("No WiFi :-(");
-          return false; // wifi must be connected
-        }
-        using namespace wifi;
-
-        bool ret = false;
-
-        HTTPClient http;
-
-        http.setTimeout(1);           // HTTPClient.h => setTimeout(uint16_t timeout) set the timeout (seconds) for the incoming connection
-        http.setConnectTimeout(1000); // HTTPClient.h => setConnectTimeout(int32_t connectTimeout) set the timeout (milliseconds) outgoing connection
-        civClient.setTimeout( 5 );    // WiFiClient.h => setTimeout(uint32_t seconds) set the timeout for the client waiting for incoming data
-
-        String command = "";
-        char hexStr[4];
-
-        for (uint8_t i = 0; i < request_size; i++) {
-          sprintf(hexStr, "%02x,", request[i]);
-          command += String(hexStr);
-        }
-
-        command += BAUDE_RATE + String(",") + SERIAL_DEVICE;
-
-        http.begin(civClient, PROXY_URL + String(":") + PROXY_PORT + String("/") + String("?civ=") + command);
-        http.addHeader("User-Agent", USER_AGENT );
-        http.addHeader("Connection", "keep-alive");
-
-        int httpCode = http.GET();
-
-        log_i("Sent proxy request: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x", request[0], request[1], request[2], request[3], request[4], request[5], request[6] );
-
-        if (httpCode == 200) {
-          proxy::setFlag( PROXY_ONLINE );
-
-          String response = http.getString(); // Get data
-          response.trim();
-          response = response.substring(4);
-
-          if (response == "") {
-            errors_count++;
-              log_i("Got empty response");
-            if( errors_count > max_errors ) {
-              proxy::setFlag( TX_OFFLINE );
-            }
-          } else {
-            proxy::setFlag( TX_ONLINE );
-            wifi::message = nullptr;
-            ret = true;
-            errors_count = 0;
-
-            for (uint8_t i = 0; i < response_size; i++) {
-              resp[i] = strtol( response.substring(i * 2, (i * 2) + 2).c_str(), NULL, 16);
-            }
-
-            #if DEBUG==1
-              Serial.println("-----\n" + response + " " + String( response.length() ) ) ;
-              for (uint8_t i = 0; i < response_size; i++) {
-                Serial.print( String( int(resp[i]) ) + " " );
-              }
-              Serial.println(" \n-----\n");
-            #endif
-            log_i("Got response: %s", response.c_str() );
-
-          }
-        } else {
-
-          errors_count++;
-
-          String response = http.getString(); // Get data
-
-          if( httpCode == 404 ) {
-            log_i("awww this proxy is not doing well (HTTP Error Code: %d, response: %s", httpCode, response.c_str() );
-            proxy::setFlag( PROXY_ONLINE );
-            proxy::setFlag( TX_OFFLINE );
-          } else {
-            // http timeout ?
-            log_i("Got unknown status response: %d", httpCode );
-            if( errors_count > max_errors ) {
-              wifi::message = proxy::MSG_CHECKPROXY;
-              proxy::setFlag( TX_OFFLINE );
-            }
-          }
-        }
-        http.end(); // Free the resources
-
-        return ret;
-      }
-
-
       // This is for espressif arduino-1.0.6 package
       // Some events have been renamed since 2.x.x, fortunately we know this ESP_ARDUINO_VERSION_VAL macro didn't exist before 2.x.x
       #if !defined ESP_ARDUINO_VERSION_VAL
@@ -248,14 +196,16 @@ namespace ICSMeter
             Serial.println( MSG_WIFI_UP );
             Serial.println(WiFi.localIP());
             wifi::connected = true;
-            screenshot::setupAsync();
+            wifi::was_connected = true;
+            daemon::message = proxy::MSG_CHECKPROXY;
+            WebServer::setupAsync(); // start websocket server and wait for proxy connections
+            WebClient::setup();      // start http client and try to contact proxy
             connect_attempts = 0;
-            wifi::message = proxy::MSG_CHECKPROXY;
           break;
           case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
             Serial.println( MSG_WIFI_DOWN );
             wifi::connected = false;
-            wifi::message = MSG_CHECKWIFI;
+            daemon::message = MSG_CHECKWIFI;
             WiFi.reconnect();
             if( ++connect_attempts >= max_reconnect_attempts ) { // TODO: reset connect_attempts from settings
               WiFi.disconnect( true );

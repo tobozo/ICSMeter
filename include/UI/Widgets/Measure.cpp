@@ -8,12 +8,24 @@ namespace ICSMeter
     namespace Measure
     {
 
-      int8_t oldValue = 5;
-      String olPrimaryValue, oldSecondaryValue;
-      String primaryValue, secondaryValue;
+      using namespace net;
+
+      MeasureModes_t oldMode = MODE_SWR;
+      String oldUnitValue;
+      String unitValue;
       constexpr const char *choices[] = {"PWR", "S", "SWR"};
 
-      const CSS::TextStyle_t labelTextStyle =
+
+      constexpr clipRect_t LabelClip =
+      {
+        .x = 65,
+        .y = 230,
+        .w = 95,
+        .h = 0
+      };
+
+
+      const CSS::TextStyle_t unitModeTextStyle =
       {
         .fgColor   = 0xffffffU,
         .bgColor   = 0x000000U,
@@ -22,16 +34,9 @@ namespace ICSMeter
         .paddingX  = 0
       };
 
-      const CSS::TextStyle_t primaryTextStyle =
-      {
-        .fgColor   = 0x000000U,
-        .bgColor   = 0xffffffU,
-        .size      = 1,
-        .datum     = MC_DATUM,
-        .paddingX  = 194
-      };
 
-      const CSS::TextStyle_t secondaryTextStyle =
+
+      const CSS::TextStyle_t unitLabelTextStyle =
       {
         .fgColor   = 0xffffffU,
         .bgColor   = 0x000000U,
@@ -41,94 +46,87 @@ namespace ICSMeter
       };
 
 
-      const CSS::FontStyle_t labelFontStyle     = { &YELLOWCRE8pt7b,  &labelTextStyle    , CSS::OPAQUE };
-      const CSS::FontStyle_t primaryFontStyle   = { &stencilie16pt7b, &primaryTextStyle  , CSS::OPAQUE };
-      const CSS::FontStyle_t secondaryFontStyle = { &YELLOWCRE8pt7b,  &secondaryTextStyle, CSS::OPAQUE };
+      const CSS::FontStyle_t unitModeFontStyle  = { &YELLOWCRE8pt7b,  &unitModeTextStyle,  CSS::OPAQUE };
+      const CSS::FontStyle_t unitLabelFontStyle = { &YELLOWCRE8pt7b,  &unitLabelTextStyle, CSS::OPAQUE };
+
 
 
       void setup()
       {
-        value = prefs::get("measure", 1);
+        mode = (MeasureModes_t)prefs::get("measure", 1);
       }
 
 
       void save()
       {
-        int8_t tmp = prefs::get("measure", 1);
-        if( value != tmp ) {
-          prefs::set("measure", value);
-          oldValue = tmp;
+        MeasureModes_t tmp = (MeasureModes_t)prefs::get("measure", 1);
+        if( mode != tmp ) {
+          prefs::set("measure", mode);
+          oldMode = tmp;
         }
       }
 
 
-      void reset() { oldValue = 5; }
+      void setUnitValue( String value )
+      {
+        unitValue = value;
+      }
 
-      void setPrimaryValue( String value )   { primaryValue = value; }
-      void setSecondaryValue( String value ) { secondaryValue = value; }
 
-      bool primary_needs_redraw()   { return (primaryValue!=olPrimaryValue); }
-      bool secondary_needs_redraw() { return (secondaryValue!=oldSecondaryValue); }
-      bool needs_redraw()           { return (primary_needs_redraw() || secondary_needs_redraw()); }
+      void updateValues()
+      {
+        unitValue = CIV::getFrequencyLabel();
+      }
+
+
+      bool needs_redraw()
+      {
+        updateValues();
+        return ( unitValue!= oldUnitValue );
+      }
 
 
       void drawValues( bool force_redraw )
       {
-        if( force_redraw || primary_needs_redraw() ) {
-          drawPrimaryValue( primaryValue );
-          olPrimaryValue = primaryValue;
-        }
-        if( force_redraw || secondary_needs_redraw() ) {
-          drawSecondaryValue( secondaryValue );
-          oldSecondaryValue = secondaryValue;
+        if( !needs_redraw() && !force_redraw ) return;
+        if( force_redraw || needs_redraw() ) {
+          drawUnitValue( unitValue );
+          oldUnitValue = unitValue;
         }
       }
 
 
       void drawLabels( bool force_redraw )
       {
-        uint16_t i = 65;
-        uint8_t j;
+        uint16_t x = LabelClip.x;//65, y = 230;
 
-        if( force_redraw || value != oldValue ) {
+        if( force_redraw || mode != oldMode ) {
 
-          oldValue = value;
+          oldMode = mode;
 
-          setFontStyle( &tft, &labelFontStyle );
+          setFontStyle( &tft, &unitModeFontStyle );
 
-          for (j = 0; j <= 2; j++) {
-            if (value == j) {
+          for (uint8_t i = 0; i < 3; i++) {
+            if (mode == i) {
               tft.setTextColor(Theme::layout->fgcolor);
-              Needle::force_reset = true; // why ?
+              //Needle::force_reset = true; // why ?
             } else {
               tft.setTextColor(TFT_DARKGREY);
             }
 
-            CSS::drawStyledString( &tft, choices[j], i, 230, nullptr );
-            i += 95;
+            CSS::drawStyledString( &tft, choices[i], x, LabelClip.y, nullptr );
+            x += LabelClip.w;
           }
         }
       }
 
 
-      void drawPrimaryValue(String valString, uint8_t x, uint8_t y)
+      void drawUnitValue(String _freq, uint8_t x, uint8_t y)
       {
-        olPrimaryValue = valString;
-        setFontStyle( &tft, &primaryFontStyle );
-        valString.replace(".", ",");
+        setFontStyle( &tft, &unitLabelFontStyle );
         tft.setTextColor(Theme::layout->fgcolor, Theme::layout->bgcolor);
-        if( valString != "" )
-          CSS::drawStyledString( &tft, valString.c_str(), x, y, nullptr );
-      }
-
-
-      void drawSecondaryValue(String valString, uint8_t x, uint8_t y)
-      {
-        oldSecondaryValue = valString;
-        setFontStyle( &tft, &secondaryFontStyle );
-        tft.setTextColor(Theme::layout->fgcolor, Theme::layout->bgcolor);
-        if( valString != "" )
-          CSS::drawStyledString( &tft, valString.c_str(), x, y, nullptr );
+        if( _freq != "" )
+          CSS::drawStyledString( &tft, _freq.c_str(), x, y, nullptr );
       }
 
 

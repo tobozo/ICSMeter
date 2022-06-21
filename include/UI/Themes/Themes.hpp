@@ -57,6 +57,9 @@ namespace ICSMeter
       //   int32_t       height;
       // };
 
+      // import cliprect struct from LGFXMeter
+      typedef struct LGFXMeter::clipRect_t clipRect_t;
+
       struct layout_t
       {
         const image_t *topImage;
@@ -68,11 +71,11 @@ namespace ICSMeter
 
       const layout_t    *layout;      // themed layout in use
       const FontStyle_t *H3FontStyle; // themed shared font style for H3
-      extern const TextBoxStyle_t BadgeBoxStyle; // unthemed shared box style
 
-      extern const FontStyle_t *H3FontStyleTheme[THEMES_COUNT];
-      extern const layout_t    *layouts[THEMES_COUNT];
-      extern const image_t *bgImageTheme[THEMES_COUNT];
+      extern const TextBoxStyle_t BadgeBoxStyle; // unthemed shared box style
+      extern const FontStyle_t   *H3FontStyleTheme[THEMES_COUNT];
+      extern const layout_t      *layouts[THEMES_COUNT];
+      extern const image_t       *bgImageTheme[THEMES_COUNT];
 
     };
 

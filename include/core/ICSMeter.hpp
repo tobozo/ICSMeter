@@ -11,8 +11,6 @@ namespace ICSMeter
 
   void loop(); // Main loop
 
-  void checkButtons();
-
   void shutdown();
 
   // Fake mutex support, this helps mitigate SPI collisions
@@ -45,11 +43,11 @@ namespace ICSMeter
       void loop();
       void cancelBubble();
       bool hasBubble();
-      int btnA, btnB, btnC;
+      bool btnA, btnB, btnC;
       // Flags for button presses via Web site Screen Capture
-      bool buttonLeftPressed   = false;
-      bool buttonCenterPressed = false;
-      bool buttonRightPressed  = false;
+      static bool buttonLeftPressed   = false;
+      static bool buttonCenterPressed = false;
+      static bool buttonRightPressed  = false;
     };
 
     namespace BackLight
