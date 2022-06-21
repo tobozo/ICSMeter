@@ -112,11 +112,6 @@ namespace ICSMeter
             handleBrowsing(); // browsing settings/selecting item
           }
         }
-/*
-        if( !dialog_enabled ) { // exiting settings menu
-          exitSettingsMenu();
-        }
-*/
       }
 
 

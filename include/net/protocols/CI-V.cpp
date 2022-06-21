@@ -371,7 +371,6 @@ namespace ICSMeter
             float mapped_value = mapFloat(status.PWR, _map->range_start, _map->range_end, _map->value_start, _map->value_end );
             float translated_value = round(mapped_value * 10);
             if( CIV::IC->model == IC705 )
-            //if (IC_MODEL == 705)
               return "PWR " + String((translated_value / 10)) + " W";
             else
               return "PWR " + String(translated_value) + " W";

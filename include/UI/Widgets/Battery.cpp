@@ -12,7 +12,6 @@ namespace ICSMeter
 
       uint8_t oldValue = 0;
       bool oldChargingState = true;
-      //String ICText;// = String(IC_MODEL) + String(IC_CONNECT == BT ? " BT" : " USB");
       const uint8_t battery_min_level = 0;
       const uint8_t battery_max_level = 100;
 

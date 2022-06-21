@@ -32,10 +32,6 @@ namespace ICSMeter
       };
 
 
-      // daemon
-      // client (proxy or bluetooth)
-      // webserver (screenshots)
-
       bool comm_needs_redraw()
       {
         if( !daemon::agent || last_comm == daemon::agent->available() ) return false;
@@ -106,6 +102,7 @@ namespace ICSMeter
           blinkMessage();
         }
       }
+
     };
 
   };

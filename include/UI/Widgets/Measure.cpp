@@ -109,7 +109,6 @@ namespace ICSMeter
           for (uint8_t i = 0; i < 3; i++) {
             if (mode == i) {
               tft.setTextColor(Theme::layout->fgcolor);
-              //Needle::force_reset = true; // why ?
             } else {
               tft.setTextColor(TFT_DARKGREY);
             }

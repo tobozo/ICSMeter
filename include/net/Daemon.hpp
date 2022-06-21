@@ -179,8 +179,6 @@ namespace ICSMeter
       bool saveCredentials( const char* new_wifi_ssid, const char* new_wifi_pass );
       bool loadCredentials( char* dest_wifi_ssid, char* dest_wifi_pass );
       void WiFiEvent(WiFiEvent_t event);
-      //bool sendCommand( char *request, size_t request_size, char *response, uint8_t response_size );
-      //extern const char* message;
     };
 
 
@@ -190,9 +188,7 @@ namespace ICSMeter
       void loop();
       bool available();
       bool sendCommand( char *request, size_t request_size, char *response, uint8_t response_size );
-      //extern const char* message;
     };
-
 
 
     // services
@@ -248,7 +244,6 @@ namespace ICSMeter
       bool available();
       bool connected();
       void setFlag( proxy_flags_t flag );
-      void checkStatus();
       uint32_t errors_count = 0;
       const uint32_t max_errors = 100; // mark the proxy as offline when this threshold is reached
       uint32_t check_frequency = 5000; // delay between end of last request and next request
@@ -256,7 +251,6 @@ namespace ICSMeter
       extern civ_subscription_t *subscriptions[8];
       extern size_t subscriptions_count;
     };
-
 
 
 

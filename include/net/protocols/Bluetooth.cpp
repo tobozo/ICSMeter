@@ -21,8 +21,6 @@ namespace ICSMeter
       constexpr const char * MSG_BT_DISCONNECTED = "BT Client disconnected";
 
       bool connected;
-      //const char* message = MSG_NEEDPAIRING;
-
       comm_struct_t agent = { bluetooth::setup, bluetooth::loop, bluetooth::available, bluetooth::sendCommand, bluetooth::message };
 
 

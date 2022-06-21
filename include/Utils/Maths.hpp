@@ -4,26 +4,6 @@ namespace ICSMeter
 {
   namespace Utils
   {
-/*
-    // Manage rotation
-    void rotate(uint16_t *x, uint16_t *y, float angle)
-    {
-      float xNew;
-      float yNew;
-
-      // Check that these are not null pointer
-      assert(x);
-      assert(y);
-
-      angle = angle * PI / 180;
-
-      xNew = *x * cos(angle) - *y * sin(angle);
-      yNew = *x * sin(angle) + *y * cos(angle);
-
-      *x = xNew;
-      *y = yNew;
-    }
-*/
 
     // Manage map float
     float mapFloat(float x, float in_min, float in_max, float out_min, float out_max)

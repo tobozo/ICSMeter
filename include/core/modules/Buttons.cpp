@@ -35,10 +35,6 @@ namespace ICSMeter
 
       bool hasBubble()
       {
-        // bool has_bubble = btnA || btnB || btnC;
-        // if( has_bubble ) {
-        //   log_d("Button has bubble: A:%d, B:%d, C:%d", btnA, btnB, btnC );
-        // }
         return btnA || btnB || btnC;
       }
 

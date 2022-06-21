@@ -43,11 +43,7 @@
 #include <WiFiClient.h>
 #include <WiFiAP.h>
 #include <ESPAsyncWebServer.h>
-
-
-//#if IC_CONNECT==BT && IC_MODEL==705
 #include <BluetoothSerial.h>
-//#endif
 
 #if defined GZIP_BINLOADER
   #define DEST_FS_USES_SD

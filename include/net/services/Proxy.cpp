@@ -36,7 +36,7 @@ namespace ICSMeter
 
       void setup()
       {
-        checkStatus();
+        //checkStatus();
       }
 
 
@@ -60,36 +60,6 @@ namespace ICSMeter
           case TX_ONLINE:     CIV::txConnected = true; CIV::had_success = true; message = nullptr; break;
           case TX_OFFLINE:    CIV::txConnected = false; break;
         }
-      }
-
-
-      void checkStatus()
-      {
-        log_v("Checking link (WiFi or Bluetooth) status");
-        if( !agent->available() ) {
-          message = agent->message;
-          return;
-        }
-
-        uint32_t now = millis();
-        if( last_check + check_frequency > now ) return;
-
-        log_v("Checking tx status");
-
-        CIV::setRequest( CIV::CIV_CHECK );
-
-        // go online
-        if( !agent->sendCommand(CIV::request, 6, CIV::buffer, 6) ) {
-          if( !proxy::available() ) {
-            message = MSG_CHECKPROXY;
-          } else {
-            //message = agent.message ? agent.message : MSG_CHECKTX;
-          }
-        } else {
-          message = nullptr;
-          //log_d( MSG_TX_UP );
-        }
-        last_check = millis();
       }
 
 

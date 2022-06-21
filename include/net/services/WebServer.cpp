@@ -160,15 +160,8 @@ namespace ICSMeter
             if((info->index + len) == info->len) {
               log_d("ws[%s][%u] frame[%u] end[%llu]", server->url(), client->id(), info->num, info->len);
               if(info->final) {
-                //log_w("%s",msg.c_str());
-
                 processWsMessage( client, msg );
-
                 log_d("ws[%s][%u] %s-message end", server->url(), client->id(), (info->message_opcode == WS_TEXT)?"text":"binary");
-                // if(info->message_opcode == WS_TEXT)
-                //   client->text("I got your multiple text message");
-                // else
-                //   client->binary("I got your multiple binary message");
               }
             }
           }

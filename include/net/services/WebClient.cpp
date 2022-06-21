@@ -134,12 +134,6 @@ namespace ICSMeter
         //civClient.setTimeout( 5 );    // WiFiClient.h => setTimeout(uint32_t seconds) set the timeout for the client waiting for incoming data
 
         String command = "";
-//         char hexStr[4];
-//
-//         for (uint8_t i = 0; i < request_size; i++) {
-//           sprintf(hexStr, "%02x,", request[i]);
-//           command += String(hexStr);
-//         }
 
         CIV::buildRequest( request, &command, "," );
 

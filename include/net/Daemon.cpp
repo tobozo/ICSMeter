@@ -69,41 +69,6 @@ namespace ICSMeter
         }
       }
 
-/*
-      void check() // called from task, may induce network blocking operations
-      {
-        if( ! daemon::agent.available() ) { // link check
-          message = daemon::agent.message;
-          return;
-        }
-
-        proxy::checkStatus();
-
-        if( ScreenSaver::isAsleep() ) {
-          return;
-        }
-
-        if( ! proxy::available() ) {
-          //message = proxy::MSG_CHECKTX;
-          return;
-        }
-
-        if( ! proxy::connected() ) {
-          message = proxy::MSG_CHECKPROXY;
-          return;
-        }
-
-        if( tx_last_poll + tx_poll_frequency < millis() ) {
-          tx = CIV::getTX();
-          if(tx != 0) {
-            log_v("Polling");
-            daemon::ICScan(); // query all statuses
-            proxy::last_check = millis();
-          }
-          tx_last_poll = millis();
-        }
-      }
-*/
 
 
       void ICScan() // called from main loop

@@ -21,13 +21,11 @@ namespace ICSMeter
       const image_t middle100Classic  = { 16, smeterMiddleClassic100, sizeof(smeterMiddleClassic100 ), IMAGE_JPG, 320, 140 };
       const image_t topClassic        = { 16, smeterTopClassic      , sizeof(smeterTopClassic       ), IMAGE_JPG, 320, 20  };
       const image_t bottomClassic     = { 16, smeterBottomClassic   , sizeof(smeterBottomClassic    ), IMAGE_JPG, 320, 80  };
-      //image_t *middleClassicPtr;// = ( CIV::IC->model == IC705 ) ? &middle10Classic : &middle100Classic;
 
       const image_t middle10Dark      = { 16, smeterMiddleDark10 ,    sizeof(smeterMiddleDark10     ), IMAGE_JPG, 320, 140 };
       const image_t middle100Dark     = { 16, smeterMiddleDark100,    sizeof(smeterMiddleDark100    ), IMAGE_JPG, 320, 140 };
       const image_t topDark           = { 16, smeterTopDark         , sizeof(smeterTopDark          ), IMAGE_JPG, 320, 20  };
       const image_t bottomDark        = { 16, smeterBottomDark      , sizeof(smeterBottomDark       ), IMAGE_JPG, 320, 80  };
-      //image_t *middleDarkPtr    ;//= ( CIV::IC->model == IC705 ) ? &middle10Dark : &middle100Dark;
 
       layout_t layoutClassic = { &topClassic, nullptr, &bottomClassic, TFT_FRONT_CLASSIC, TFT_BACK_CLASSIC };
       layout_t layoutDark    = { &topDark,    nullptr, &bottomDark,    TFT_FRONT_DARK,    TFT_BACK_DARK    };
@@ -51,8 +49,6 @@ namespace ICSMeter
 
       void set()
       {
-        //middleClassicPtr          = ( CIV::IC->model == IC705 ) ? &middle10Classic : &middle100Classic;
-        //middleDarkPtr             = ( CIV::IC->model == IC705 ) ? &middle10Dark    : &middle100Dark;
         layoutClassic.middleImage = (const image_t *)(( CIV::IC->model == IC705 ) ? &middle10Classic : &middle100Classic);
         layoutDark.middleImage    = (const image_t *)(( CIV::IC->model == IC705 ) ? &middle10Dark    : &middle100Dark);
         layout                    = layouts[theme];

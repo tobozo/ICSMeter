@@ -11,8 +11,6 @@ namespace ICSMeter
       using namespace proxy;
       using namespace daemon;
 
-      //WiFiClient civClient;
-
       constexpr const char* MSG_WIFI_UP   = "Wifi Client Connected";
       constexpr const char* MSG_WIFI_DOWN = "Wifi Client disconnected";
       constexpr const char* MSG_CHECKWIFI = "Check Wifi";
@@ -28,7 +26,6 @@ namespace ICSMeter
       bool was_connected = false;
       bool has_credentials = ( strcmp( WIFI_SSID, "YOUR WIFI SSID" )!=0 && strcmp( WIFI_PASSWORD, "YOUR WIFI PASSWORD" )!=0 );
       bool setup_done = false;
-      //const char* message = MSG_CHECKWIFI;
 
 
       void setup()
