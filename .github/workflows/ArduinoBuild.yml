@@ -52,8 +52,8 @@ jobs:
       - name: Install lib deps
         run: |
           mkdir ~/.arduino15
-          arduino-cli core update-index --config-file .github/arduino-cli/esp32.yaml
-          arduino-cli core install esp32:esp32
+          arduino-cli core update-index --additional-urls ${{ env.PLATFORM_URL }}
+          arduino-cli core install esp32:esp32 --additional-urls ${{ env.PLATFORM_URL }}
           arduino-cli lib install --no-deps M5Stack-SD-Updater
           arduino-cli lib install --no-deps ESP32-targz
           arduino-cli lib install --no-deps M5Unified
