@@ -221,6 +221,11 @@ namespace ICSMeter
       bool subscribe( civ_subscription_t *sub );
       bool sendCommand( char *request, size_t request_size, char *resp, uint8_t response_size );
       bool has_subscriptions = false;
+      #if defined UPDATER_URL
+        WiFiClient *getFirmwareClientPtr( WiFiClientSecure *client, const char* url, const char *cert = NULL );
+        extern HTTPClient http;
+        extern WiFiClientSecure client;
+      #endif
     }
 
     namespace WebServer

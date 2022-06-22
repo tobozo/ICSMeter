@@ -20,6 +20,9 @@ namespace ICSMeter
       #define subscribe_url PROXY_URL ":" QUOTE(PROXY_PORT) "/subscribe"
       #define command_url   PROXY_URL ":" QUOTE(PROXY_PORT) "/?civ="
 
+      HTTPClient http;
+      //WiFiClient client;
+
       // called by WiFi event STA_GOT_IP
       void setup()
       {
@@ -75,14 +78,15 @@ namespace ICSMeter
         }
         bool ret = false;
 
-        HTTPClient http;
-        WiFiClient civClient;
+        //HTTPClient http;
+        WiFiClient client;
 
         //http.setTimeout(1);           // HTTPClient.h => setTimeout(uint16_t timeout) set the timeout (seconds) for the incoming connection
         //http.setConnectTimeout(1000); // HTTPClient.h => setConnectTimeout(int32_t connectTimeout) set the timeout (milliseconds) outgoing connection
 
-        http.begin( civClient, subscribe_url );
-        http.addHeader("User-Agent", USER_AGENT );
+        http.begin( client, subscribe_url );
+        //http.addHeader("User-Agent", USER_AGENT );
+        http.setUserAgent( USER_AGENT );
 
         String requestStr = "";
         CIV::buildRequest( sub->command, &requestStr );
@@ -126,12 +130,12 @@ namespace ICSMeter
 
         bool ret = false;
 
-        HTTPClient http;
-        WiFiClient civClient;
+        WiFiClient client;
 
         //http.setTimeout(1);           // HTTPClient.h => setTimeout(uint16_t timeout) set the timeout (seconds) for the incoming connection
-        //http.setConnectTimeout(1000); // HTTPClient.h => setConnectTimeout(int32_t connectTimeout) set the timeout (milliseconds) outgoing connection
-        //civClient.setTimeout( 5 );    // WiFiClient.h => setTimeout(uint32_t seconds) set the timeout for the client waiting for incoming data
+        http.setConnectTimeout(1000); // HTTPClient.h => setConnectTimeout(int32_t connectTimeout) set the timeout (milliseconds) outgoing connection
+        //client.setTimeout( 5 );    // WiFiClient.h => setTimeout(uint32_t seconds) set the timeout for the client waiting for incoming data
+
 
         String command = "";
 
@@ -139,7 +143,7 @@ namespace ICSMeter
 
         command += BAUDE_RATE + String(",") + SERIAL_DEVICE;
 
-        http.begin( civClient, String( command_url ) + command );
+        http.begin( client, String( command_url ) + command );
         http.addHeader("User-Agent", USER_AGENT );
         http.addHeader("Connection", "keep-alive");
 
@@ -204,6 +208,50 @@ namespace ICSMeter
 
         return ret;
       }
+
+      #if defined UPDATER_URL
+
+        String GetLastUpdateVerion()
+        {
+          HTTPClient http;
+          WiFiClientSecure *client = new WiFiClientSecure;
+          client->setInsecure();
+          http.setFollowRedirects( HTTPC_FORCE_FOLLOW_REDIRECTS ); // handle 301 redirects gracefully
+          http.setUserAgent( USER_AGENT );
+          http.setConnectTimeout( 10000 ); // 10s timeout = 10000
+          if( ! http.begin(*client, UPDATER_URL ) ) {
+            log_e("Can't open url %s", UPDATER_URL );
+            return "";
+          }
+          int httpCode = http.GET();
+          if( httpCode != 200 ) {
+            log_w("Not 200 response: %d", httpCode );
+            http.end();
+            return "";
+          }
+          static String response = http.getString();
+          http.end();
+          return response;
+        }
+
+        bool CheckUpdate()
+        {
+          String dataStr = GetLastUpdateVerion();
+          dataStr.trim();
+          if( dataStr == "" ) return false;
+          const char* data = dataStr.c_str();
+          char *contents = strtok((char*)data, "{}");//remove '{' and  '}' : note that is not included in the content
+          char key[32], value[32];
+          int len;
+          while(2==sscanf(contents, "\"%31[^\"]\":\"%31[^\"]\",%n", key, value, &len)){
+            if(!strcmp(key, "last_update") || !strcmp(key, "board") || !strcmp(key, "firmware")) || !strcmp(key, "version"))
+              printf("%s=%s\n", key, value);
+            contents += len;
+          }
+          return true;
+        }
+
+      #endif
 
 
 

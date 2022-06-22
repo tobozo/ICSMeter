@@ -12,6 +12,7 @@ namespace ICSMeter
     using namespace CSS;
     using namespace modules;
     using namespace modules::buttons;
+    using namespace net;
 
     constexpr const char* SPIFFS_MSG1           = "Flash File System";
     constexpr const char* SPIFFS_MSG2           = "needs to be formatted.";
@@ -25,10 +26,17 @@ namespace ICSMeter
     #if !defined GZIP_BINLOADER // no gzip support, skip gzipped files
       constexpr const char* BIN_LOADER_VERSION    = "Bin Loader V0.2";
     #else
+      GzUnpacker *GZUnpacker = nullptr;
       constexpr const char* BIN_LOADER_VERSION    = "Bin Loader V0.3";
     #endif
     constexpr const char* BIN_LOADER_SPI        = "SPI Flash File Storage";
     constexpr const char* BIN_LOADER_SD         = "SD Card Storage";
+
+    #if defined UPDATER_URL
+
+    #else
+
+    #endif
 
     constexpr const uint16_t MAX_ITEMS_IN_MENU = 128;
 
@@ -102,12 +110,77 @@ namespace ICSMeter
 
 
     #if defined GZIP_BINLOADER
-    void updateProgressCallback( uint8_t progress )
-    {
-      if( SDUCfg.onProgress ) SDUCfg.onProgress( progress, 100 );
-      else BaseUnpacker::defaultProgressCallback( progress );
-    }
+
+      void updateProgressCallback( uint8_t progress )
+      {
+        if( SDUCfg.onProgress ) SDUCfg.onProgress( progress, 100 );
+        else BaseUnpacker::defaultProgressCallback( progress );
+      }
+
+
+      void gzInit()
+      {
+        GZUnpacker = new GzUnpacker();
+        GZUnpacker->haltOnError( false );                                         // stop on fail ( = manual restart/reset required )
+        GZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );      // prevent the partition from exploding, recommended
+        GZUnpacker->setGzProgressCallback( updateProgressCallback );              // attach SDUpdater progress bar to ESP32-targz unpacker
+        GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  ); // gz log verbosity for serial console
+        GZUnpacker->setPsram( false );                                            // psram may slow down decompression
+      }
+
+
+      bool gzUpdate( fs::FS &fs, const char* bin_name )
+      {
+        gzInit();
+        if( ! GZUnpacker->gzUpdater( fs, bin_name, U_FLASH, /*restart on update*/true ) ) {
+          log_e("gzUpdater failed with return code #%d\n", GZUnpacker->tarGzGetError() );
+          CSS::drawStyledString( &tft, "Update Failed", 160, 20, &StyleH1 );
+          return false;
+        }
+        Serial.println("Update success, will restart");
+        return true;
+      }
+
+      #if defined UPDATER_URL
+
+        bool gzStreamUpdate( const char* url )
+        {
+          HTTPClient http;
+          WiFiClientSecure *client = new WiFiClientSecure;
+          client->setInsecure();
+          http.setFollowRedirects( HTTPC_FORCE_FOLLOW_REDIRECTS ); // handle 301 redirects gracefully
+          http.setUserAgent( USER_AGENT );
+          http.setConnectTimeout( 10000 ); // 10s timeout = 10000
+          if( ! http.begin(*client, url ) ) {
+            log_e("Can't open url %s", url );
+            return false;
+          }
+          int httpCode = http.GET();
+          if( httpCode != 200 ) {
+            log_w("Not 200 response: %d", httpCode );
+            http.end();
+            return false;
+          }
+
+          Stream* streamptr = http.getStreamPtr();
+
+          if( streamptr == nullptr ) {
+            Serial.printf("Error loading URL %s\n", url );
+            return false;
+          }
+
+          gzInit();
+          if( !GZUnpacker->gzStreamUpdater( streamptr, UPDATE_SIZE_UNKNOWN, 0, false ) ) {
+            Serial.printf("tarGzStreamUpdater failed with return code #%d\n", GZUnpacker->tarGzGetError() );
+            return false;
+          }
+          http.end();
+          return true;
+        }
+      #endif
+
     #endif
+
 
 
 
@@ -193,19 +266,21 @@ namespace ICSMeter
           CSS::drawStyledString( &tft, String("Loading " + binFileNames[cursor].path).c_str(), 160, 20, &StyleH1 );
 
           if( binFileNames[cursor].path.endsWith(".gz") ) { // use gzUpdater
+
             #if defined GZIP_BINLOADER
-              GzUnpacker *GZUnpacker = new GzUnpacker();
-              GZUnpacker->haltOnError( false );                                         // stop on fail ( = manual restart/reset required )
-              GZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );      // prevent the partition from exploding, recommended
-              GZUnpacker->setGzProgressCallback( updateProgressCallback );              // attach SDUpdater progress bar to ESP32-targz unpacker
-              GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  ); // gz log verbosity for serial console
-              GZUnpacker->setPsram( false );                                            // psram may slow down decompression
-              if( ! GZUnpacker->gzUpdater( *binFileNames[cursor].fs, binFileNames[cursor].path.c_str(), U_FLASH, /*restart on update*/true ) ) {
-                log_e("gzUpdater failed with return code #%d\n", GZUnpacker->tarGzGetError() );
-                CSS::drawStyledString( &tft, "Update Failed", 160, 20, &StyleH1 );
-              } else {
-                Serial.println("Update success, will restart");
-              }
+              gzUpdate( *binFileNames[cursor].fs, binFileNames[cursor].path.c_str() );
+              // GzUnpacker *GZUnpacker = new GzUnpacker();
+              // GZUnpacker->haltOnError( false );                                         // stop on fail ( = manual restart/reset required )
+              // GZUnpacker->setupFSCallbacks( targzTotalBytesFn, targzFreeBytesFn );      // prevent the partition from exploding, recommended
+              // GZUnpacker->setGzProgressCallback( updateProgressCallback );              // attach SDUpdater progress bar to ESP32-targz unpacker
+              // GZUnpacker->setLoggerCallback( BaseUnpacker::targzPrintLoggerCallback  ); // gz log verbosity for serial console
+              // GZUnpacker->setPsram( false );                                            // psram may slow down decompression
+              // if( ! GZUnpacker->gzUpdater( *binFileNames[cursor].fs, binFileNames[cursor].path.c_str(), U_FLASH, /*restart on update*/true ) ) {
+              //   log_e("gzUpdater failed with return code #%d\n", GZUnpacker->tarGzGetError() );
+              //   CSS::drawStyledString( &tft, "Update Failed", 160, 20, &StyleH1 );
+              // } else {
+              //   Serial.println("Update success, will restart");
+              // }
             #endif
           } else { // use sdUpdater
             updateFromFS(*binFileNames[cursor].fs, binFileNames[cursor].path );
