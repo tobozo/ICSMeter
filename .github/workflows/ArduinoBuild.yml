@@ -80,10 +80,10 @@ jobs:
           extra-arduino-lib-install-args: "--no-deps"
           set-build-path: true
 
-      - name: Upload artifact ${{ matrix.matrix-context }}
+      - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ matrix.matrix-context }}
+          name: "Arduino Build"
           path: /home/runner/ICSMeter/build/ICSMeter.ino.bin
 
 
