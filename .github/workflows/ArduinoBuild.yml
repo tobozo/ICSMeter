@@ -54,7 +54,7 @@ jobs:
           arduino-cli lib install --no-deps FastLED
           arduino-cli lib install --git-url https://github.com/me-no-dev/ESPAsyncWebServer.git
           arduino-cli lib install --git-url https://github.com/me-no-dev/AsyncTCP.git
-          arduino-cli compile --verbose --warnings all --fqbn esp32:esp32:m5stack-core2 --build-path /home/runner/ICSMeter/build/  /home/runner/ICSMeter
+          arduino-cli compile --verbose --warnings all --fqbn esp32:esp32:m5stack-core2 --build-path ./build/ ICSMeter.ino
 
       #- name: Compile Sketch
         #uses: ArminJo/arduino-test-compile@v3
