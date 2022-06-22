@@ -244,7 +244,7 @@ namespace ICSMeter
           char key[32], value[32];
           int len;
           while(2==sscanf(contents, "\"%31[^\"]\":\"%31[^\"]\",%n", key, value, &len)){
-            if(!strcmp(key, "last_update") || !strcmp(key, "board") || !strcmp(key, "firmware")) || !strcmp(key, "version"))
+            if(!strcmp(key, "last_update") || !strcmp(key, "board") || !strcmp(key, "firmware") || !strcmp(key, "version"))
               printf("%s=%s\n", key, value);
             contents += len;
           }
