@@ -1,0 +1,12 @@
+{
+  "additionalFiles": "..,../..,../../../..,../../../..,../../../..,../../../..,../../..,../../..,../../..,../../../..,../../../..,../../../..,../../../..,../../../..,../../../..,../../../..,../../../..,../../..,../../..,../../..,../../..,../../..,../../..,../../../..,../../../..,../../../..,../../../..,../../../..,../../../..,../../..,../../..,../../..,../../../..,../../../..,../../../..,../../../..,../../../..,../../../..,../../../..,../..,../..,..",
+  "builtInLibrariesFolders": "",
+  "builtInToolsFolders": "",
+  "compiler.optimization_flags": "",
+  "customBuildProperties": "",
+  "fqbn": "esp32:esp32:m5stack-core2",
+  "hardwareFolders": "/home/runner/.arduino15/packages",
+  "otherLibrariesFolders": "/home/runner/Arduino/libraries",
+  "runtime.ide.version": "10607",
+  "sketchLocation": "/home/runner/work/ICSMeter/ICSMeter/ICSMeter.ino"
+}
