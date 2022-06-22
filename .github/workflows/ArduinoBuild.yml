@@ -4,6 +4,7 @@ env:
   SKETCH_NAME: ICSMeter
   BUILD_DIR: /home/runner/ICSMeter/build
   ARDUINO_LIBRARY_ENABLE_UNSAFE_INSTALL: true
+  PLATFORM_DEFAULT_URL: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
 
 on:
   push: # see: https://help.github.com/en/actions/reference/events-that-trigger-workflows#pull-request-event-pull_request
