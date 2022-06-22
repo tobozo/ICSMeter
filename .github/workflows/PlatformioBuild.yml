@@ -2,8 +2,8 @@ name: PlatformIOBuild
 
 
 on:
-  branch: master
   push:
+    branches-ignore: [ghpages]
     paths:
     - '**.ino'
     - '**.ini'
