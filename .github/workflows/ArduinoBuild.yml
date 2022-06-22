@@ -77,6 +77,7 @@ jobs:
           arduino-cli lib install --no-deps FastLED
           arduino-cli lib install --git-url https://github.com/me-no-dev/ESPAsyncWebServer.git
           arduino-cli lib install --git-url https://github.com/me-no-dev/AsyncTCP.git
+          cat settings.h | grep UPDATER_URL && echo yay || echo '#define UPDATER_URL "${{ secrets.UPDATER_URL }}"' >> settings.h
           arduino-cli compile --verbose --warnings all --fqbn esp32:esp32:m5stack-core2 --build-path ${{ env.BUILD_DIR }} ${{ env.SKETCH_NAME }}.ino
 
       - name: Prepare gh-pages
@@ -93,9 +94,6 @@ jobs:
           echo "<br>" >> ${{ env.GHPAGE_DIR }}/index.html
           echo "<a href=${{ env.dstname }}>${{ env.dstname }}</a></body></html>" >> ${{ env.GHPAGE_DIR }}/index.html
           echo '{"last_update":"${{ env.datetime }}","board":"${{matrix.board}}","firmware":"${{ env.dstname }}","version":"${{ env.version }}"}' > ${{ env.GHPAGE_DIR }}/index.json
-
-
-# https://tobozo.github.io/ICSMeter/ICSMeter.m5stack-core2.bin
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2

@@ -220,11 +220,6 @@ namespace ICSMeter
           String url = String( UPDATER_URL ) + "index.json";
           client->setInsecure();
 
-          // if (!client->connect("tobozo.github.io", 443)) {
-          //   log_e("Connection failed (%d bytes free)", ESP.getFreeHeap() );
-          //   goto _end;
-          // }
-
           http.setFollowRedirects( HTTPC_FORCE_FOLLOW_REDIRECTS ); // handle 301 redirects gracefully
           http.setUserAgent( USER_AGENT );
           http.setConnectTimeout( 10000 ); // 10s timeout = 10000
