@@ -67,3 +67,12 @@ jobs:
         run: |
           pio run -e ${{ matrix.board }}@${{ matrix.platform-version }}
 
+      - name: Upload artifact ${{ matrix.matrix-context }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.matrix-context }}
+          path: .pio/build/${{ matrix.board }}@${{ matrix.platform-version }}/firmware.bin
+
+
+
+
