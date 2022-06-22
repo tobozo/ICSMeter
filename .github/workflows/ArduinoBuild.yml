@@ -74,7 +74,7 @@ jobs:
           echo $lastupdate >> ${{ env.GHPAGE_DIR }}/index.html
           echo "<br>" >> ${{ env.GHPAGE_DIR }}/index.html
           echo "<a href=$fname>$fname</a></body></html>" >> ${{ env.GHPAGE_DIR }}/index.html
-          echo '{"last_update":"$lastupdate","board":"${{matrix.board}}","firmware":"$fname"}' > ${{ env.GHPAGE_DIR }}/index.json
+          echo '{"last_update":"${lastupdate}","board":"${{matrix.board}}","firmware":"${fname}"}' > ${{ env.GHPAGE_DIR }}/index.json
 
 
 # https://tobozo.github.io/ICSMeter/ICSMeter.m5stack-core2.bin
