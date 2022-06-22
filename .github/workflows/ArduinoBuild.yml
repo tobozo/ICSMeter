@@ -51,6 +51,9 @@ jobs:
 
       - name: Install lib deps
         run: |
+          mkdir ~/.arduino15
+          arduino-cli core update-index --config-file .github/arduino-cli/esp32.yaml
+          arduino-cli core install esp32:esp32
           arduino-cli lib install --no-deps M5Stack-SD-Updater
           arduino-cli lib install --no-deps ESP32-targz
           arduino-cli lib install --no-deps M5Unified
@@ -59,7 +62,6 @@ jobs:
           arduino-cli lib install --no-deps FastLED
           arduino-cli lib install --git-url https://github.com/me-no-dev/ESPAsyncWebServer.git
           arduino-cli lib install --git-url https://github.com/me-no-dev/AsyncTCP.git
-          arduino-cli core install esp32:esp32 --additional-urls ${{ env.PLATFORM_URL }}
           arduino-cli compile --verbose --warnings all --fqbn esp32:esp32:m5stack-core2 --build-path ${{ env.BUILD_DIR }} ICSMeter.ino
 
       #- name: Compile Sketch
