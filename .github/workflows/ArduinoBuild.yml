@@ -58,11 +58,14 @@ jobs:
 
       - name: Install lib deps
         run: |
-          arduino-cli lib install --no-deps "M5Stack-SD-Updater"
-          arduino-cli lib install --no-deps "ESP32-targz"
+          arduino-cli lib install --no-deps M5Stack-SD-Updater
+          arduino-cli lib install --no-deps ESP32-targz
           arduino-cli lib install --no-deps M5Unified
+          arduino-cli lib install --no-deps M5GFX
+          arduino-cli lib install --no-deps LGFXMeter
           arduino-cli lib install --no-deps FastLED
-          arduino-cli lib install --no-deps ESPAsyncWebServer
+          arduino-cli lib install --git-url https://github.com/me-no-dev/ESPAsyncWebServer.git
+          arduino-cli lib install --git-url https://github.com/me-no-dev/AsyncTCP.git
 
       - name: Compile example
         uses: ArminJo/arduino-test-compile@v3
