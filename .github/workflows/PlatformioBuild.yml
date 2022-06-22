@@ -1,5 +1,8 @@
 name: PlatformIOBuild
 
+env:
+  SKETCH_NAME: ICSMeter
+  GHPAGE_DIR: /home/runner/ICSMeter/gh-pages
 
 on:
   push:
@@ -62,18 +65,47 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade platformio
+          mkdir -p ${{ env.GHPAGE_DIR }}
+
+      - name: Get current date
+        id: date
+        run: |
+          echo "::set-output name=datetime::$(date +'%Y-%m-%dT%H:%M:%S%z')"
+          echo "::set-output name=version::$(echo $GITHUB_REF | cut -d / -f 3)"
+          echo "::set-output name=srcname::.pio/build/${{ matrix.board }}@${{ matrix.platform-version }}/firmware.bin"
 
       - name: Run PlatformIO
-
         run: |
+          cat settings.h | grep UPDATER_URL && echo yay || echo '#define UPDATER_URL "${{ secrets.UPDATER_URL }}"' >> settings.h
           pio run -e ${{ matrix.board }}@${{ matrix.platform-version }}
+
+      - name: Prepare gh-pages
+        env:
+          srcname: ${{ steps.date.outputs.srcname }}
+          dstname: ${{ env.SKETCH_NAME }}.${{matrix.board}}.bin
+          version: ${{ steps.date.outputs.version }}
+          datetime: ${{ steps.date.outputs.datetime }}
+        run: |
+          cp ${{ env.BUILD_DIR }}/${{ env.srcname }} ${{ env.GHPAGE_DIR }}/${{ env.dstname }}
+          gzip -c ${{ env.BUILD_DIR }}/${{ env.srcname }} > ${{ env.GHPAGE_DIR }}/${{ env.dstname }}.gz
+          echo "<!doctype html><html><meta charset=utf8><body>Last update: " > ${{ env.GHPAGE_DIR }}/index.html
+          echo ${{ env.datetime }} >> ${{ env.GHPAGE_DIR }}/index.html
+          echo "<br>" >> ${{ env.GHPAGE_DIR }}/index.html
+          echo "<a href=${{ env.dstname }}>${{ env.dstname }}</a></body></html>" >> ${{ env.GHPAGE_DIR }}/index.html
+          echo '{"last_update":"${{ env.datetime }}","board":"${{matrix.board}}","firmware":"${{ env.dstname }}","version":"${{ env.version }}"}' > ${{ env.GHPAGE_DIR }}/index.json
+
 
       - name: Upload artifact ${{ matrix.matrix-context }}
         uses: actions/upload-artifact@v2
         with:
           name: "Platformio Build"
-          path: .pio/build/${{ matrix.board }}@${{ matrix.platform-version }}/firmware.bin
+          path: ${{ env.firmware }}
 
 
+      - name: Deploy 🚀
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages # The branch the action should deploy to.
+          folder: ${{ env.GHPAGE_DIR }}/ # The folder the action should deploy.
 
 
