@@ -1,7 +1,7 @@
 name: ArduinoBuild
 
 env:
-  SKETCH_NAME: ICSMeter.ino
+  SKETCH_NAME: ICSMeter
   # "setup-arduino-cli" github action documentation is a joke, and "arduino-cli" documentation is misleading.
   # Also @me-no-dev thinks his libraries can live without creating releases or tags, but he is creating this instead.
   ARDUINO_LIBRARY_ENABLE_UNSAFE_INSTALL: true
@@ -80,11 +80,12 @@ jobs:
           build-properties: ${{ toJson(matrix.build-properties) }}
           sketch-names: ${{ env.SKETCH_NAME }}
           extra-arduino-lib-install-args: "--no-deps"
+          set-build-path: true
 
       - name: Upload artifact ${{ matrix.matrix-context }}
         uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.matrix-context }}
-          path: build/ICSMeter.ino.bin
+          path: $HOME/${{ env.SKETCH_NAME }}/build/${{ env.SKETCH_NAME }}.ino.bin
 
 
