@@ -58,7 +58,7 @@ jobs:
 
       - name: Get current date
         id: date
-        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+        run: echo "::set-output name=datetime::$(date +'%Y-%m-%dT%H:%M:%S%z')"
 
       - name: Install lib deps and build
         env:
@@ -80,13 +80,14 @@ jobs:
       - name: Prepare gh-pages
         env:
           srcname: ${{ env.SKETCH_NAME }}.ino.bin
+          dstname: ${{ env.SKETCH_NAME }}.${{matrix.board}}.bin
         run: |
           cp ${{ env.BUILD_DIR }}/${{ env.srcname }} ${{ env.GHPAGE_DIR }}/${{ env.dstname }}
           echo "<!doctype html><html><meta charset=utf8><body>Last update: " > ${{ env.GHPAGE_DIR }}/index.html
-          echo ${{ steps.date.outputs.date }} >> ${{ env.GHPAGE_DIR }}/index.html
+          echo ${{ steps.date.outputs.datetime }} >> ${{ env.GHPAGE_DIR }}/index.html
           echo "<br>" >> ${{ env.GHPAGE_DIR }}/index.html
           echo "<a href=${{ env.dstname }}>${{ env.dstname }}</a></body></html>" >> ${{ env.GHPAGE_DIR }}/index.html
-          echo '{"last_update":"${{ steps.date.outputs.date }}","board":"${{matrix.board}}","firmware":"${{ env.dstname }}"}' > ${{ env.GHPAGE_DIR }}/index.json
+          echo '{"last_update":"${{ steps.date.outputs.datetime }}","board":"${{matrix.board}}","firmware":"${{ env.dstname }}"}' > ${{ env.GHPAGE_DIR }}/index.json
 
 
 # https://tobozo.github.io/ICSMeter/ICSMeter.m5stack-core2.bin
