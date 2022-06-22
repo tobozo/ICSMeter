@@ -2,6 +2,8 @@ name: ArduinoBuild
 
 env:
   SKETCH_NAME: ICSMeter.ino
+  # "setup-arduino-cli" github action documentation is a joke, and "arduino-cli" documentation is misleading.
+  # Also @me-no-dev thinks his libraries can live without creating releases or tags, but he is creating this instead.
   ARDUINO_LIBRARY_ENABLE_UNSAFE_INSTALL: true
 
 on:
