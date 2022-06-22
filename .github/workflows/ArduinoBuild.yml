@@ -1,0 +1,71 @@
+name: ArduinoBuild
+
+env:
+  SKETCH_NAME: ICSMeter.ino
+
+on:
+  push: # see: https://help.github.com/en/actions/reference/events-that-trigger-workflows#pull-request-event-pull_request
+    paths:
+    - '**.ino'
+    - '**.cpp'
+    - '**.hpp'
+    - '**.h'
+    - '**.c'
+    - '**ArduinoBuild.yml'
+  pull_request:
+
+jobs:
+  build:
+    name: ${{matrix.board}}@${{matrix.platform-version}}
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+
+        platform-url:
+          - https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+
+        board:
+          #- esp32
+          #- esp32s2
+          #- m5stick-c
+          #- m5stack-core-esp32
+          - m5stack-core2
+          #- esp32s3box
+
+        platform-version:
+          # ESP32 Core versions
+          - 2.0.3
+
+        include:
+          # 3D matrix doesn't apply to these:
+          #- { board: m5stack-core-esp32, platform: esp32, archi: esp32, ... }
+          - { board: m5stack-core2,  platform: esp32, archi: esp32, required-libraries: M5Stack-SD-Updater,ESP32-targz,M5Unified,FastLED,ESPAsyncWebServer }
+
+      fail-fast: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Compile example
+        uses: ArminJo/arduino-test-compile@v3
+        with:
+          arduino-board-fqbn: ${{matrix.platform}}:${{matrix.archi}}:${{matrix.board}}
+          arduino-platform: ${{matrix.platform}}:${{matrix.archi}}@${{matrix.platform-version}}
+          platform-url: ${{ matrix.platform-url }}
+          required-libraries: ${{ matrix.required-libraries }}
+          build-properties: ${{ toJson(matrix.build-properties) }}
+          sketch-names: ${{ env.SKETCH_NAME }}
+          #sketches-exclude: ${{ matrix.sketches-exclude }}
+
+      - name: Upload artifact ${{ matrix.matrix-context }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.matrix-context }}
+          path: build/ICSMeter.ino.bin
+
+
