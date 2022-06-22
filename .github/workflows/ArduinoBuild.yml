@@ -55,9 +55,8 @@ jobs:
 
       - name: Install Arduino CLI
         uses: arduino/setup-arduino-cli@v1
-        with:
-          library:
-            enable_unsafe_install: true
+        library:
+          enable_unsafe_install: true
 
       - name: Install lib deps
         run: |
