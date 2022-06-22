@@ -28,4 +28,3 @@
 #define TRANSVERTER_LO_4    406000000           // LO Frequency if you're using a Transverter
 #define TRANSVERTER_LO_5   9968000000           // LO Frequency if you're using a Transverter
 
-

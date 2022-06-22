@@ -83,6 +83,7 @@ jobs:
           dstname: ${{ env.SKETCH_NAME }}.${{matrix.board}}.bin
         run: |
           cp ${{ env.BUILD_DIR }}/${{ env.srcname }} ${{ env.GHPAGE_DIR }}/${{ env.dstname }}
+          gzip -c ${{ env.BUILD_DIR }}/${{ env.srcname }} > ${{ env.GHPAGE_DIR }}/${{ env.dstname }}.gz
           echo "<!doctype html><html><meta charset=utf8><body>Last update: " > ${{ env.GHPAGE_DIR }}/index.html
           echo ${{ steps.date.outputs.datetime }} >> ${{ env.GHPAGE_DIR }}/index.html
           echo "<br>" >> ${{ env.GHPAGE_DIR }}/index.html
