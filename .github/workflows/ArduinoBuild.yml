@@ -4,7 +4,7 @@ env:
   SKETCH_NAME: ICSMeter
   BUILD_DIR: /home/runner/ICSMeter/build
   ARDUINO_LIBRARY_ENABLE_UNSAFE_INSTALL: true
-  PLATFORM_DEFAULT_URL: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+  PLATFORM_URL: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
 
 on:
   push: # see: https://help.github.com/en/actions/reference/events-that-trigger-workflows#pull-request-event-pull_request
@@ -60,7 +60,7 @@ jobs:
           arduino-cli lib install --git-url https://github.com/me-no-dev/ESPAsyncWebServer.git
           arduino-cli lib install --git-url https://github.com/me-no-dev/AsyncTCP.git
           arduino-cli core install esp32:esp32
-          arduino-cli compile --verbose --warnings all --fqbn esp32:esp32:m5stack-core2 --build-path ${{ env.BUILD_DIR }} ICSMeter.ino
+          arduino-cli compile --verbose --warnings all --fqbn esp32:esp32:m5stack-core2 --additional-urls ${{ env.PLATFORM_URL }} --build-path ${{ env.BUILD_DIR }} ICSMeter.ino
 
       #- name: Compile Sketch
         #uses: ArminJo/arduino-test-compile@v3
