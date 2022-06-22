@@ -84,6 +84,6 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.matrix-context }}
-          path: $HOME/build/${{ env.SKETCH_NAME }}.ino.bin
+          path: /home/runner/ICSMeter/build/ICSMeter.ino.bin
 
 
