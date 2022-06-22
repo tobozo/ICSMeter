@@ -99,7 +99,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: "Platformio Build"
-          path: ${{ env.firmware }}
+          path: ${{ env.SKETCH_NAME }}.${{matrix.board}}.bin
 
 
       - name: Deploy 🚀
