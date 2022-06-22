@@ -63,6 +63,9 @@ namespace ICSMeter
       void exitSettingsMenu       ();
       void onShutdown             ();
       void onExit                 ();
+      #if defined UPDATER_URL
+        void onCheckForUpdate       ();
+      #endif
 
       const settings_handler_t menuchoices[] =
       {
@@ -77,6 +80,9 @@ namespace ICSMeter
         { "IP Address",       onShowIPAddress         },
         { "Mac Address",      onShowMacAddress        },
         { "Shutdown",         onShutdown              },
+      #if defined UPDATER_URL
+        { "Update",           onCheckForUpdate        },
+      #endif
         { "Exit",             onExit                  },
       };
 
@@ -100,7 +106,7 @@ namespace ICSMeter
             dialog_enabled   = true;
             setting_selected = false;
             //choice = 0;
-            Settings::draw();
+            Settings::draw( true );
           }
           return;
         }
@@ -112,6 +118,12 @@ namespace ICSMeter
             handleBrowsing(); // browsing settings/selecting item
           }
         }
+      }
+
+
+      void drawSettingValue( const char* title, bool bold = false )
+      {
+        CSS::drawStyledString( &tft, title, hmiddle, titleYpos, bold ? &ULFontStyle : &LIFontStyle);
       }
 
 
@@ -152,7 +164,7 @@ namespace ICSMeter
 
       void onShutdown()
       {
-        CSS::drawStyledString( &tft, "", hmiddle, titleYpos, &ULFontStyle );
+        drawSettingValue(  "", true );
         if(buttons::btnB) {
           shutdown();
         }
@@ -161,7 +173,7 @@ namespace ICSMeter
 
       void onExit()
       {
-        CSS::drawStyledString( &tft, "", hmiddle, titleYpos, &ULFontStyle );
+        drawSettingValue( "", true );
         if(buttons::btnB) {
           exitSettingsMenu();
         }
@@ -204,6 +216,40 @@ namespace ICSMeter
         }
       }
 
+      #if defined UPDATER_URL
+
+        void onCheckForUpdate()
+        {
+          setMenuDelay( 300 );
+          String _label;
+          if( !wifi::available() ) {
+            _label = "No WiFi";
+          } else {
+            _label = "Check Update";
+          }
+
+          drawSettingValue( _label.c_str() );
+
+          if(buttons::btnB) {
+            if( wifi::available() ) {
+              drawSettingValue( "Checking..." );
+              String updateURL = WebClient::GetLastUpdateURL();
+              if( updateURL != "" ) {
+                drawSettingValue( "Updating..." );
+                if( FSUpdater::gzStreamUpdate( updateURL.c_str() ) ) {
+                  ESP.restart();
+                  while(1);
+                }
+              }
+              drawSettingValue( "Failed..." );
+              exitSettingsMenu();
+              return;
+            }
+          }
+        }
+      #endif
+
+
 
       void onChangeICModel()
       {
@@ -214,7 +260,7 @@ namespace ICSMeter
           }
         }
 
-        CSS::drawStyledString( &tft, CIV::IC->label, hmiddle, titleYpos, &LIFontStyle );
+        drawSettingValue( CIV::IC->label );
 
         if(buttons::btnB) {
           CIV::save();
@@ -238,7 +284,7 @@ namespace ICSMeter
 
         char textbox[8];
         snprintf( textbox, 7, "0x%02X", CIV::CIV_ADR );
-        CSS::drawStyledString( &tft, textbox, hmiddle, titleYpos, &LIFontStyle );
+        drawSettingValue( textbox );
 
         if(buttons::btnB) {
           CIV::save();
@@ -271,7 +317,7 @@ namespace ICSMeter
           Measure::drawLabels( true );
         }
 
-        CSS::drawStyledString( &tft, Measure::choices[Measure::mode], hmiddle, titleYpos, &ULFontStyle );
+        drawSettingValue( Measure::choices[Measure::mode], true );
 
         if(buttons::btnB) {
           Measure::save();
@@ -297,7 +343,7 @@ namespace ICSMeter
           drawMenu();
         }
 
-        CSS::drawStyledString( &tft, Theme::choices[Theme::theme], hmiddle, titleYpos, &ULFontStyle );
+        drawSettingValue( Theme::choices[Theme::theme], true );
 
         if(buttons::btnB) {
           Theme::save();
@@ -329,7 +375,7 @@ namespace ICSMeter
 
         char textbox[20];
         snprintf( textbox, 19, "%s %d%s", BackLight::label, BackLight::getBrightness(), "%" );
-        CSS::drawStyledString( &tft, textbox, hmiddle, titleYpos, &ULFontStyle );
+        drawSettingValue( textbox, true );
       }
 
 
@@ -358,11 +404,11 @@ namespace ICSMeter
         }
 
         if(value == 0) {
-          CSS::drawStyledString( &tft, "OFF", hmiddle, titleYpos, &ULFontStyle );
+          drawSettingValue( "OFF", true );
         } else {
           char transverter_value_str[17];
           format_number( Transverter::choices[value], 16, transverter_value_str, '.' );
-          CSS::drawStyledString( &tft, transverter_value_str, hmiddle, titleYpos, &ULFontStyle );
+          drawSettingValue( transverter_value_str, true );
         }
       }
 
@@ -389,7 +435,7 @@ namespace ICSMeter
 
         char textbox[20];
         snprintf( textbox, 19, "%s %d%s", Beeper::label, Beeper::beepVolume, "%" );
-        CSS::drawStyledString( &tft, textbox, hmiddle, titleYpos, &ULFontStyle );
+        drawSettingValue( textbox, true );
       }
 
 
@@ -414,7 +460,7 @@ namespace ICSMeter
 
         char textbox[20];
         snprintf( textbox, 19, "%s %d%s", ScreenSaver::label, ScreenSaver::getDelay(), " MIN" );
-        CSS::drawStyledString( &tft, textbox, hmiddle, titleYpos, &ULFontStyle );
+        drawSettingValue( textbox, true );
       }
 
 
@@ -422,7 +468,7 @@ namespace ICSMeter
       {
         setMenuDelay( 300 );
 
-        CSS::drawStyledString( &tft, WiFi.localIP().toString().c_str(), hmiddle, titleYpos, &ULFontStyle );
+        drawSettingValue( WiFi.localIP().toString().c_str(), true );
 
         if(buttons::btnB) {
           exitSettingsMenu();
@@ -435,7 +481,7 @@ namespace ICSMeter
       {
         setMenuDelay( 300 );
 
-        CSS::drawStyledString( &tft, WiFi.macAddress().c_str(), hmiddle, titleYpos, &ULFontStyle );
+        drawSettingValue( WiFi.macAddress().c_str(), true );
 
         if(buttons::btnB) {
           exitSettingsMenu();

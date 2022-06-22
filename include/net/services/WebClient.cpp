@@ -211,44 +211,72 @@ namespace ICSMeter
 
       #if defined UPDATER_URL
 
-        String GetLastUpdateVerion()
+        String GetLastUpdateVersion()
         {
           HTTPClient http;
           WiFiClientSecure *client = new WiFiClientSecure;
+          String ret = "";
+          int httpCode;
+          String url = String( UPDATER_URL ) + "index.json";
           client->setInsecure();
+
+          // if (!client->connect("tobozo.github.io", 443)) {
+          //   log_e("Connection failed (%d bytes free)", ESP.getFreeHeap() );
+          //   goto _end;
+          // }
+
           http.setFollowRedirects( HTTPC_FORCE_FOLLOW_REDIRECTS ); // handle 301 redirects gracefully
           http.setUserAgent( USER_AGENT );
           http.setConnectTimeout( 10000 ); // 10s timeout = 10000
-          if( ! http.begin(*client, UPDATER_URL ) ) {
-            log_e("Can't open url %s", UPDATER_URL );
-            return "";
+          http.setTimeout(5000);
+          if( ! http.begin(*client, url ) ) {
+            log_e("Can't open url %s (%d bytes free)", url, ESP.getFreeHeap() );
+            goto _end;
           }
-          int httpCode = http.GET();
+          httpCode = http.GET();
           if( httpCode != 200 ) {
-            log_w("Not 200 response: %d", httpCode );
-            http.end();
-            return "";
+            log_w("Not 200 response: %d (%d bytes free)", httpCode, ESP.getFreeHeap() );
+            goto _end;
           }
-          static String response = http.getString();
+          ret = http.getString();
+
+          _end:
           http.end();
-          return response;
+          delete client;
+          return ret;
         }
 
-        bool CheckUpdate()
+        String GetLastUpdateURL()
         {
-          String dataStr = GetLastUpdateVerion();
+          using namespace UI;
+          log_w("Stopping webserver (%d bytes free)", ESP.getFreeHeap() );
+          String ret = "";
+          WebServer::server.end();
+          Needle::end();
+          log_w("Webserver stopped (%d bytes free)", ESP.getFreeHeap() );
+          String dataStr = GetLastUpdateVersion();
           dataStr.trim();
-          if( dataStr == "" ) return false;
-          const char* data = dataStr.c_str();
-          char *contents = strtok((char*)data, "{}");//remove '{' and  '}' : note that is not included in the content
-          char key[32], value[32];
-          int len;
-          while(2==sscanf(contents, "\"%31[^\"]\":\"%31[^\"]\",%n", key, value, &len)){
-            if(!strcmp(key, "last_update") || !strcmp(key, "board") || !strcmp(key, "firmware") || !strcmp(key, "version"))
-              printf("%s=%s\n", key, value);
-            contents += len;
+          if( dataStr == "" ) goto _end;
+          {
+            const char* data = dataStr.c_str();
+            char *contents = strtok((char*)data, "{}");//remove '{' and  '}' : note that is not included in the content
+            char key[32], value[32];
+            int len;
+            while(2==sscanf(contents, "\"%31[^\"]\":\"%31[^\"]\",%n", key, value, &len)){
+              if( /*!strcmp(key, "last_update") || !strcmp(key, "board") ||*/ !strcmp(key, "firmware") /*|| !strcmp(key, "version")*/) {
+                ret = String( UPDATER_URL ) + String( value ) + ".gz";
+                log_w("Extracted %s=%s\n", key, value);
+                goto _end;
+              }
+              contents += len;
+            }
           }
-          return true;
+
+          _end:
+          log_w("Restarting webserver");
+          WebServer::server.begin();
+          Needle::setup();
+          return ret;
         }
 
       #endif

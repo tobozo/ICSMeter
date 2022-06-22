@@ -30,6 +30,7 @@ namespace ICSMeter
 
       void setup()
       {
+        //esp_bt_controller_mem_release(ESP_BT_IO_CAP_OUT);
         daemon::message = MSG_CHECKWIFI;
         if( !setup_done ) {
           if( !has_credentials ) {

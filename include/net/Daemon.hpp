@@ -233,6 +233,10 @@ namespace ICSMeter
       void setupAsync();
       bool isRunning   = false;
       bool OTA_enabled = false;
+      AsyncWebServer server(80);
+      AsyncWebSocket ws("/ws");
+      AsyncEventSource events("/events");
+      AsyncWebSocketClient* wsClient;
     }
 
 

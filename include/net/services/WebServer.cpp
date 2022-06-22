@@ -13,13 +13,6 @@ namespace ICSMeter
     {
       using namespace daemon;
 
-
-      AsyncWebServer server(80);
-      AsyncWebSocket ws("/ws");
-      AsyncEventSource events("/events");
-      AsyncWebSocketClient* wsClient;
-
-
       String getContentType(String filename)
       {
         /*if (server.hasArg("download")) {

@@ -32,6 +32,9 @@ namespace ICSMeter
     void getBinaryList( fs::FS *sourceFS );
     #if defined GZIP_BINLOADER
       void updateProgressCallback( uint8_t progress );
+      #if defined UPDATER_URL
+        bool gzStreamUpdate( const char* url );
+      #endif
     #endif
   };
 

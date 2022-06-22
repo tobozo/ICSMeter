@@ -76,7 +76,7 @@ namespace ICSMeter
       const CSS::FontStyle_t labelFontStyle   = { &stencilie16pt7b, &labelTextStyle  , CSS::OPAQUE };
 
 
-      Gauge_Class  *ICSGauge    = nullptr;
+      Gauge_Class  *ICSGauge = nullptr;
 
       void setup()
       {
@@ -89,6 +89,15 @@ namespace ICSMeter
         cfg.needle.axis = { axis_x, axis_y-GaugeClip.y };
         ICSGauge = new Gauge_Class( cfg );
         onThemeChange();
+      }
+
+      void end()
+      {
+        if( ICSGauge ) {
+          ICSGauge->getGaugeSprite()->deleteSprite();
+          delete ICSGauge;
+          ICSGauge = nullptr;
+        }
       }
 
 
@@ -177,6 +186,7 @@ namespace ICSMeter
       void drawNeedle( float_t angle )
       {
         oldAngle = angle;
+        if( !ICSGauge ) return;
         //ICSGauge->drawNeedle( angle + 45.0 );
         //ICSGauge->animateNeedle( angle + 45.0 );
         ICSGauge->setNeedle( angle + 45.0 );

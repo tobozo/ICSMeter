@@ -51,6 +51,7 @@ namespace ICSMeter
     namespace Needle
     {
       void setup();
+      void end();
       //void reset();
       //bool force_reset = true;
       bool needs_redraw();
