@@ -26,24 +26,23 @@ jobs:
         platform-url:
           - https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
 
-        board:
+        #board:
           #- esp32
           #- esp32s2
           #- m5stick-c
           #- m5stack-core-esp32
-          - m5stack-core2
+          #- m5stack-core2
           #- esp32s3box
 
-        platform-version:
+        #platform-version:
           # ESP32 Core versions
-          - 2.0.3
+          #- 2.0.3
 
         include:
-          # 3D matrix doesn't apply to these:
-          #- { board: m5stack-core-esp32, platform: esp32, archi: esp32, ... }
           - board: m5stack-core2
             platform: esp32
             archi: esp32
+            platform-version: 2.0.3
             required-libraries: "M5Stack-SD-Updater,ESP32-targz,M5Unified,FastLED,ESPAsyncWebServer"
 
       fail-fast: false
@@ -63,7 +62,7 @@ jobs:
           required-libraries: ${{ matrix.required-libraries }}
           build-properties: ${{ toJson(matrix.build-properties) }}
           sketch-names: ${{ env.SKETCH_NAME }}
-          #sketches-exclude: ${{ matrix.sketches-exclude }}
+          extra-arduino-lib-install-args: "--no-deps"
 
       - name: Upload artifact ${{ matrix.matrix-context }}
         uses: actions/upload-artifact@v2
