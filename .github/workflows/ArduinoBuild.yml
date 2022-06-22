@@ -44,7 +44,7 @@ jobs:
           - board: m5stack-core2
             platform: esp32
             archi: esp32
-            required-libraries: M5Stack-SD-Updater,ESP32-targz,M5Unified,FastLED,ESPAsyncWebServer
+            required-libraries: "M5Stack-SD-Updater,ESP32-targz,M5Unified,FastLED,ESPAsyncWebServer"
 
       fail-fast: false
 
