@@ -41,7 +41,10 @@ jobs:
         include:
           # 3D matrix doesn't apply to these:
           #- { board: m5stack-core-esp32, platform: esp32, archi: esp32, ... }
-          - { board: m5stack-core2,  platform: esp32, archi: esp32, required-libraries: M5Stack-SD-Updater,ESP32-targz,M5Unified,FastLED,ESPAsyncWebServer }
+          - board: m5stack-core2
+            platform: esp32
+            archi: esp32
+            required-libraries: M5Stack-SD-Updater,ESP32-targz,M5Unified,FastLED,ESPAsyncWebServer
 
       fail-fast: false
 
