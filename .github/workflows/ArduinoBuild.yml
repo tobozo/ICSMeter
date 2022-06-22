@@ -8,6 +8,8 @@ env:
   PLATFORM_URL: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
 
 on:
+  permissions:
+    contents: write
   push: # see: https://help.github.com/en/actions/reference/events-that-trigger-workflows#pull-request-event-pull_request
     branches-ignore: [ghpages]
     paths:
@@ -92,8 +94,8 @@ jobs:
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          token: ${{ secrets.GH_TOKEN }}
           branch: gh-pages # The branch the action should deploy to.
           folder: ${{ env.GHPAGE_DIR }}/ # The folder the action should deploy.
+#          token: ${{ secrets.GH_TOKEN }}
 
 
