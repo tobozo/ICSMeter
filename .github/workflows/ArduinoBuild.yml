@@ -53,8 +53,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
+      - name: Install Arduino CLI
+        uses: arduino/setup-arduino-cli@v1
+
       - name: Install lib deps
-        uses: ArminJo/arduino-test-compile@v3
         run: |
           arduino-cli lib install --no-deps "M5Stack-SD-Updater"
           arduino-cli lib install --no-deps "ESP32-targz"
