@@ -27,24 +27,11 @@ jobs:
         platform-url:
           - https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
 
-        #board:
-          #- esp32
-          #- esp32s2
-          #- m5stick-c
-          #- m5stack-core-esp32
-          #- m5stack-core2
-          #- esp32s3box
-
-        #platform-version:
-          # ESP32 Core versions
-          #- 2.0.3
-
         include:
           - board: m5stack-core2
             platform: esp32
             archi: esp32
             platform-version: 2.0.3
-            #required-libraries: "M5Stack-SD-Updater,ESP32-targz,M5Unified,FastLED,ESPAsyncWebServer"
 
       fail-fast: false
 
@@ -67,18 +54,16 @@ jobs:
           arduino-cli lib install --no-deps FastLED
           arduino-cli lib install --git-url https://github.com/me-no-dev/ESPAsyncWebServer.git
           arduino-cli lib install --git-url https://github.com/me-no-dev/AsyncTCP.git
+          arduino-cli compile --verbose --warnings all --fqbn esp32:esp32:m5stack-core2 --build-path /home/runner/ICSMeter/build/  /home/runner/ICSMeter
 
-      - name: Compile example
-        uses: ArminJo/arduino-test-compile@v3
-        with:
-          arduino-board-fqbn: ${{matrix.platform}}:${{matrix.archi}}:${{matrix.board}}
-          arduino-platform: ${{matrix.platform}}:${{matrix.archi}}@${{matrix.platform-version}}
-          platform-url: ${{ matrix.platform-url }}
-          required-libraries: ${{ matrix.required-libraries }}
-          build-properties: ${{ toJson(matrix.build-properties) }}
-          sketch-names: ${{ env.SKETCH_NAME }}.ino
-          extra-arduino-lib-install-args: "--no-deps"
-          set-build-path: true
+      #- name: Compile Sketch
+        #uses: ArminJo/arduino-test-compile@v3
+        #with:
+          #arduino-board-fqbn: ${{matrix.platform}}:${{matrix.archi}}:${{matrix.board}}
+          #arduino-platform: ${{matrix.platform}}:${{matrix.archi}}@${{matrix.platform-version}}
+          #platform-url: ${{ matrix.platform-url }}
+          #sketch-names: ${{ env.SKETCH_NAME }}.ino
+          #set-build-path: true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
