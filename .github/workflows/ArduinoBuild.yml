@@ -2,6 +2,7 @@ name: ArduinoBuild
 
 env:
   SKETCH_NAME: ICSMeter.ino
+  ARDUINO_LIBRARY_ENABLE_UNSAFE_INSTALL: true
 
 on:
   push: # see: https://help.github.com/en/actions/reference/events-that-trigger-workflows#pull-request-event-pull_request
@@ -55,8 +56,6 @@ jobs:
 
       - name: Install Arduino CLI
         uses: arduino/setup-arduino-cli@v1
-        library:
-          enable_unsafe_install: true
 
       - name: Install lib deps
         run: |
