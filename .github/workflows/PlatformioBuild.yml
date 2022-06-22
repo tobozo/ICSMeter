@@ -71,7 +71,7 @@ jobs:
       - name: Upload artifact ${{ matrix.matrix-context }}
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ matrix.matrix-context }}
+          name: "Platformio Build"
           path: .pio/build/${{ matrix.board }}@${{ matrix.platform-version }}/firmware.bin
 
 
