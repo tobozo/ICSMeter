@@ -43,7 +43,7 @@ jobs:
             platform: esp32
             archi: esp32
             platform-version: 2.0.3
-            required-libraries: "M5Stack-SD-Updater,ESP32-targz,M5Unified,FastLED,ESPAsyncWebServer"
+            #required-libraries: "M5Stack-SD-Updater,ESP32-targz,M5Unified,FastLED,ESPAsyncWebServer"
 
       fail-fast: false
 
@@ -52,6 +52,14 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Install lib deps
+        run: |
+          arduino-cli lib install --no-deps "M5Stack-SD-Updater"
+          arduino-cli lib install --no-deps "ESP32-targz"
+          arduino-cli lib install --no-deps M5Unified
+          arduino-cli lib install --no-deps FastLED
+          arduino-cli lib install --no-deps ESPAsyncWebServer
 
       - name: Compile example
         uses: ArminJo/arduino-test-compile@v3
