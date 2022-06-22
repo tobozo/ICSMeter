@@ -8,8 +8,6 @@ env:
   PLATFORM_URL: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
 
 on:
-  permissions:
-    contents: write
   push: # see: https://help.github.com/en/actions/reference/events-that-trigger-workflows#pull-request-event-pull_request
     branches-ignore: [ghpages]
     paths:
@@ -20,6 +18,9 @@ on:
     - '**.c'
     - '**ArduinoBuild.yml'
   pull_request:
+
+permissions:
+  contents: write
 
 jobs:
   build:
