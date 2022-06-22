@@ -68,7 +68,7 @@ jobs:
           arduino-cli lib install --git-url https://github.com/me-no-dev/AsyncTCP.git
           arduino-cli compile --verbose --warnings all --fqbn esp32:esp32:m5stack-core2 --build-path ${{ env.BUILD_DIR }} ${{ env.SKETCH_NAME }}.ino
           echo "fname=${{ env.SKETCH_NAME }}.${{matrix.board}}.${{ github.event.action }}.bin" >> $GITHUB_ENV
-          echo "lastupdate=`date +'%Y-%m-%dT%H:%M:%S%z"`' >> $GITHUB_ENV
+          echo "lastupdate=$(echo date +'%Y-%m-%dT%H:%M:%S%z')" >> $GITHUB_ENV
           cp ${{ env.BUILD_DIR }}/${{ env.SKETCH_NAME }}.ino.bin ${{ env.fname }}
           echo "<!doctype html><html><meta charset=utf8><body>Last update: " > ${{ env.GHPAGE_DIR }}/index.html
           echo ${{ env.lastupdate }} >> ${{ env.GHPAGE_DIR }}/index.html
