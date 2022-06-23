@@ -220,31 +220,39 @@ namespace ICSMeter
 
         void onCheckForUpdate()
         {
+          using namespace WebClient;
           setMenuDelay( 300 );
-          String _label;
-          if( !wifi::available() ) {
-            _label = "No WiFi";
-          } else {
-            _label = "Check Update";
-          }
 
-          drawSettingValue( _label.c_str() );
+          drawSettingValue( "Check Update" );
 
           if(buttons::btnB) {
             if( wifi::available() ) {
               drawSettingValue( "Checking..." );
-              String updateURL = WebClient::GetLastUpdateURL();
-              if( updateURL != "" ) {
+              vTaskDelay( 300 );
+              GetLastUpdateURL();
+              if( AppWebUpdate.updatable ) {
                 drawSettingValue( "Updating..." );
-                if( FSUpdater::gzStreamUpdate( updateURL.c_str() ) ) {
-                  ESP.restart();
-                  while(1);
+                if( FSUpdater::gzStreamUpdate( AppWebUpdate.firmware.c_str() ) ) {
+                  drawSettingValue( "Success!" );
+                } else {
+                  drawSettingValue( "Bad firmware :-(" );
+                }
+              } else {
+                if( AppWebUpdate.last_update != 0 && AppWebUpdate.last_update <= __TIME_UNIX__ ) {
+                  drawSettingValue( "Already up to date" );
+                } else {
+                  drawSettingValue( "Update Failed :-(" );
                 }
               }
-              drawSettingValue( "Failed..." );
-              exitSettingsMenu();
-              return;
+              vTaskDelay( 2000 );
+              ESP.restart();
+              while(1);
+            } else {
+              drawSettingValue( "No WiFi" );
+              vTaskDelay( 1000 );
             }
+            exitSettingsMenu();
+            return;
           }
         }
       #endif

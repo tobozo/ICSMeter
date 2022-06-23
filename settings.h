@@ -1,16 +1,6 @@
 // Copyright (c) F4HWN Armel. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-
-// IC Transceiver Model
-//#define IC_MODEL 705                            // 705, 7300 (and may be 9700)
-
-// IC Connect
-//#define IC_CONNECT  USB                         // BT (Bluetooth) or USB (Universal Serial Bus)
-
-// CI_V Address
-//#define CI_V_ADDRESS 0xA4                       // CI-V default address 0xA4
-
 // Wifi Config
 #define WIFI_SSID       "YOUR WIFI SSID"        // Your WiFi SSID
 #define WIFI_PASSWORD   "YOUR WIFI PASSWORD"    // Your WiFi Password

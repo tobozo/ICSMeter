@@ -251,7 +251,7 @@ namespace ICSMeter
 
         UpdateVersion AppWebUpdate;
 
-        String GetLastUpdateURL()
+        void GetLastUpdateURL()
         {
           using namespace UI;
 
@@ -314,7 +314,7 @@ namespace ICSMeter
           WebServer::server.begin();
           Needle::setup();
 
-          return (parsed && AppWebUpdate.updatable) ? AppWebUpdate.firmware : ""; //ret;
+          //return (parsed && AppWebUpdate.updatable) ? AppWebUpdate.firmware : ""; //ret;
         }
 
       #endif
