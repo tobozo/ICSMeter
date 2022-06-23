@@ -48,6 +48,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: ${{github.event.pull_request.head.sha}}
+          fetch-depth: 0
 
       - name: Cache pip
         uses: actions/cache@v2
@@ -83,7 +84,7 @@ jobs:
         run: |
           echo "[INFO] Injecting UPDATER_URL/BUILD_NUMBER/BUILD_DATETIME"
           cat settings.h | grep UPDATER_URL && echo "[WARNING] UPDATER_URL is built-in" || echo '#define UPDATER_URL "${{secrets.UPDATER_URL}}"' >> settings.h
-          echo '#define BUILD_NUMBER ${{steps.info.outputs.version}}' >> settings.h
+          echo '#define BUILD_NUMBER ${{steps.info.outputs.build}}' >> settings.h
           echo '#define __TIME_UNIX__ ${{steps.info.outputs.epoch}}' >> settings.h
           pio run -e ${{matrix.board}}@${{matrix.platform-version}}
 

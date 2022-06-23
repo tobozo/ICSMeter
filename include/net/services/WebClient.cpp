@@ -280,6 +280,7 @@ namespace ICSMeter
                 AppWebUpdate.firmware = String( UPDATER_URL ) + String( value ) + ".gz";
               } else if( !strcmp(key, "build") ) {
                 AppWebUpdate.buildnum = atoi( value );
+                // TODO: compare with BUILD_NUMBER (if defined)
               } else if( !strcmp(key, "version") ) {
                 AppWebUpdate.version = String( value );
               } else if( !strcmp(key, "last_update") ) {
