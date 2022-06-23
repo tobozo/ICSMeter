@@ -296,7 +296,7 @@ namespace ICSMeter
                 time.tm_sec = (int)s;    // 0-61 (0-60 in C++11)
                 AppWebUpdate.last_update = mktime( &time );
                 // compare remote build time to local build time (also cheat on tz_offset)
-                if( AppWebUpdate.last_update + 86400 > __TIME_UNIX__ ) {
+                if( AppWebUpdate.last_update > __TIME_UNIX__ ) {
                   log_d("Updatable - Remote=%d, Local=%d", AppWebUpdate.last_update, __TIME_UNIX__ );
                   AppWebUpdate.updatable = true;
                 } else {

@@ -74,7 +74,7 @@ jobs:
       - name: Set Build info
         id: info
         run: |
-          echo "::set-output name=datetime::$(date +'%Y-%m-%dT%H:%M:%S%z')"
+          echo "::set-output name=datetime::$(TZ=GMT date +'%Y-%m-%dT%H:%M:%S%z')"
           echo "::set-output name=epoch::$(date +'%s')"
           echo "::set-output name=build::$(git rev-list --all --count)"
           echo "::set-output name=version::$(cat main/version.h | grep -oP '\"\K[^\"]+')"
