@@ -216,7 +216,7 @@ namespace ICSMeter
           HTTPClient http;
           WiFiClientSecure *client = new WiFiClientSecure;
           int httpCode;
-          String url = String( UPDATER_URL ) + "index.json";
+          String url = String( UPDATER_URL ) + ( tft.getBoard()==m5gfx::boards::board_t::board_M5StackCore2 ? "m5stack-core2.json" : "m5stack-core-esp32.json" );
           client->setInsecure();
 
           http.setFollowRedirects( HTTPC_FORCE_FOLLOW_REDIRECTS ); // handle 301 redirects gracefully

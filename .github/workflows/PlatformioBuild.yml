@@ -96,8 +96,8 @@ jobs:
           version:   ${{steps.info.outputs.version}}
           build:     ${{steps.info.outputs.build}}
           datetime:  ${{steps.info.outputs.datetime}}
-          html:      ${{env.GHPAGE_DIR}}/index.html
-          json:      ${{env.GHPAGE_DIR}}/index.json
+          html:      ${{env.GHPAGE_DIR}}/${{matrix.board}}.html
+          json:      ${{env.GHPAGE_DIR}}/${{matrix.board}}.json
         run: |
           cp ${{env.srcname}} ${{env.GHPAGE_DIR}}/${{env.dstname}}
           gzip -c ${{env.srcname}} > ${{env.GHPAGE_DIR}}/${{env.dstnamegz}}
