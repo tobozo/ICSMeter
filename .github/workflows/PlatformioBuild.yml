@@ -103,7 +103,7 @@ jobs:
           echo "<!doctype html><html><meta charset=utf8><body>Last update: ${{env.datetime}}" > ${{env.html}}
           echo "<br><a href=${{env.dstname}}>${{env.dstname}} ($(stat -c%s ${{env.dstname}}) bytes)</a><br>" >> ${{env.html}}
           echo "<a href=${{env.dstnamegz}}>${{env.dstnamegz}} ($(stat -c%s ${{env.dstnamegz}}) bytes)</a><br></body></html>" >> ${{env.html}}
-          echo '{"last_update":"${{env.datetime}}","board":"${{matrix.board}}","firmware":"${{env.dstname}}","version":"${{env.version}}"},"build":"${{env.build}}"}' > ${{env.json}}
+          echo '{"last_update":"${{env.datetime}}","board":"${{matrix.board}}","firmware":"${{env.dstname}}","version":"${{env.version}}","build":"${{env.build}}"}' > ${{env.json}}
 
 
       #- name: Upload artifact ${{matrix.matrix-context}}
