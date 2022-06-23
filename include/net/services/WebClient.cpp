@@ -276,6 +276,7 @@ namespace ICSMeter
             char key[32], value[32];
             int len;
             while(2==sscanf(contents, "\"%31[^\"]\":\"%31[^\"]\",%n", key, value, &len)){
+              log_d("Extracted %s=%s", key, value);
               if( !strcmp(key, "firmware") ) {
                 AppWebUpdate.firmware = String( UPDATER_URL ) + String( value ) + ".gz";
               } else if( !strcmp(key, "build") ) {
@@ -302,7 +303,6 @@ namespace ICSMeter
                   log_d("Already up to date - Remote=%d, Local=%d", AppWebUpdate.last_update, __TIME_UNIX__ );
                 }
               }
-              log_d("Extracted %s=%s\n", key, value);
               contents += len;
             }
             parsed = AppWebUpdate.buildnum!=0 && AppWebUpdate.last_update !=0 && AppWebUpdate.firmware !="" && AppWebUpdate.version !="";
