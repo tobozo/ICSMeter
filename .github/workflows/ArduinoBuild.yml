@@ -99,12 +99,12 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: "Arduino Build"
-          path: ${{ env.BUILD_DIR }}/ICSMeter.ino.bin
+          path: ${{env.GHPAGE_DIR}}/${{env.SKETCH_NAME}}.${{matrix.board}}.bin.gz
 
-      - name: Deploy 🚀
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          branch: gh-pages # The branch the action should deploy to.
-          folder: ${{ env.GHPAGE_DIR }}/ # The folder the action should deploy.
+      #- name: Deploy 🚀
+        #uses: JamesIves/github-pages-deploy-action@v4
+        #with:
+          #branch: gh-pages # The branch the action should deploy to.
+          #folder: ${{ env.GHPAGE_DIR }}/ # The folder the action should deploy.
 
 

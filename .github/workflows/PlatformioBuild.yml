@@ -101,16 +101,16 @@ jobs:
           cp ${{env.srcname}} ${{env.GHPAGE_DIR}}/${{env.dstname}}
           gzip -c ${{env.srcname}} > ${{env.GHPAGE_DIR}}/${{env.dstnamegz}}
           echo "<!doctype html><html><meta charset=utf8><body>Last update: ${{env.datetime}}" > ${{env.html}}
-          echo "<br><a href=${{env.dstname}}>${{env.dstname}}</a><br>" >> ${{env.html}}
-          echo "<a href=${{env.dstnamegz}}>${{env.dstnamegz}}</a><br></body></html>" >> ${{env.html}}
+          echo "<br><a href=${{env.dstname}}>${{env.dstname}} ($(stat -c%s ${{env.dstname}}) bytes)</a><br>" >> ${{env.html}}
+          echo "<a href=${{env.dstnamegz}}>${{env.dstnamegz}} ($(stat -c%s ${{env.dstnamegz}}) bytes)</a><br></body></html>" >> ${{env.html}}
           echo '{"last_update":"${{env.datetime}}","board":"${{matrix.board}}","firmware":"${{env.dstname}}","version":"${{env.version}}"},"build":"${{env.build}}"}' > ${{env.json}}
 
 
-      - name: Upload artifact ${{matrix.matrix-context}}
-        uses: actions/upload-artifact@v2
-        with:
-          name: "Platformio Build"
-          path: ${{env.SKETCH_NAME}}.${{matrix.board}}.bin
+      #- name: Upload artifact ${{matrix.matrix-context}}
+        #uses: actions/upload-artifact@v2
+        #with:
+          #name: "Platformio Build"
+          #path: ${{env.GHPAGE_DIR}}/${{env.SKETCH_NAME}}.${{matrix.board}}.bin.gz
 
 
       - name: Deploy 🚀
