@@ -75,8 +75,8 @@ jobs:
         run: |
           echo "::set-output name=datetime::$(date +'%Y-%m-%dT%H:%M:%S%z')"
           echo "::set-output name=epoch::$(date +'%s')"
-          echo "::set-output name=build::$(git log --pretty=format:'' | wc -l)"
-          echo "::set-output name=version::$(cat main/version.h | cut -d '"' -f2)"
+          echo "::set-output name=build::$(git rev-list --all --count)"
+          echo "::set-output name=version::$(cat main/version.h | grep -oP '\"\K[^\"]+')"
           echo "::set-output name=srcname::.pio/build/${{matrix.board}}@${{matrix.platform-version}}/firmware.bin"
 
       - name: Run PlatformIO
