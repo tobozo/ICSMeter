@@ -211,11 +211,10 @@ namespace ICSMeter
 
       #if defined UPDATER_URL
 
-        String GetLastUpdateVersion()
+        void GetJSONVersionList( String *response )
         {
           HTTPClient http;
           WiFiClientSecure *client = new WiFiClientSecure;
-          String ret = "";
           int httpCode;
           String url = String( UPDATER_URL ) + "index.json";
           client->setInsecure();
@@ -233,45 +232,88 @@ namespace ICSMeter
             log_w("Not 200 response: %d (%d bytes free)", httpCode, ESP.getFreeHeap() );
             goto _end;
           }
-          ret = http.getString();
+          *response = http.getString();
 
           _end:
           http.end();
           delete client;
-          return ret;
         }
+
+
+        struct UpdateVersion
+        {
+          bool updatable;
+          uint32_t last_update;
+          String firmware;
+          String version;
+          int buildnum;
+        };
+
+        UpdateVersion AppWebUpdate;
 
         String GetLastUpdateURL()
         {
           using namespace UI;
-          log_w("Stopping webserver (%d bytes free)", ESP.getFreeHeap() );
-          String ret = "";
-          WebServer::server.end();
-          Needle::end();
-          log_w("Webserver stopped (%d bytes free)", ESP.getFreeHeap() );
-          String dataStr = GetLastUpdateVersion();
+
+          log_d("Stopping webserver (%d bytes free)", ESP.getFreeHeap() );
+          WebServer::server.end(); // avoid the CIV messing with the stack while update in progress
+          Needle::end(); // free some heap (Needle uses a 24 bit 240*160 sprite)
+          log_d("Webserver stopped (%d bytes free)", ESP.getFreeHeap() );
+
+          String dataStr = "";
+          bool parsed = false;
+          AppWebUpdate = { false, 0, "", "", 0 };
+
+          GetJSONVersionList( &dataStr );
           dataStr.trim();
+
           if( dataStr == "" ) goto _end;
+
+          // another cheap ArduinoJSON substitute using sscanf
           {
             const char* data = dataStr.c_str();
             char *contents = strtok((char*)data, "{}");//remove '{' and  '}' : note that is not included in the content
             char key[32], value[32];
             int len;
             while(2==sscanf(contents, "\"%31[^\"]\":\"%31[^\"]\",%n", key, value, &len)){
-              if( /*!strcmp(key, "last_update") || !strcmp(key, "board") ||*/ !strcmp(key, "firmware") /*|| !strcmp(key, "version")*/) {
-                ret = String( UPDATER_URL ) + String( value ) + ".gz";
-                log_w("Extracted %s=%s\n", key, value);
-                goto _end;
+              if( !strcmp(key, "firmware") ) {
+                AppWebUpdate.firmware = String( UPDATER_URL ) + String( value ) + ".gz";
+              } else if( !strcmp(key, "build") ) {
+                AppWebUpdate.buildnum = atoi( value );
+              } else if( !strcmp(key, "version") ) {
+                AppWebUpdate.version = String( value );
+              } else if( !strcmp(key, "last_update") ) {
+                int y,M,d,h,m,s; // expected format is UTC: "2022-06-22T18:30:45+0000"
+                sscanf( value, "%d-%d-%dT%d:%d:%d", &y, &M, &d, &h, &m, &s );
+                tm time = { 0 };
+                time.tm_year = y - 1900; // Year since 1900
+                time.tm_mon = M - 1;     // 0-11
+                time.tm_mday = d;        // 1-31
+                time.tm_hour = h;        // 0-23
+                time.tm_min = m;         // 0-59
+                time.tm_sec = (int)s;    // 0-61 (0-60 in C++11)
+                AppWebUpdate.last_update = mktime( &time );
+                // compare remote build time to local build time
+                if( AppWebUpdate.last_update > __TIME_UNIX__ ) {
+                  log_d("Updatable - Remote=%d, Local=%d", AppWebUpdate.last_update, __TIME_UNIX__ );
+                  AppWebUpdate.updatable = true;
+                } else {
+                  log_d("Already up to date - Remote=%d, Local=%d", AppWebUpdate.last_update, __TIME_UNIX__ );
+                }
               }
+              log_d("Extracted %s=%s\n", key, value);
               contents += len;
             }
+            parsed = AppWebUpdate.buildnum!=0 && AppWebUpdate.last_update !=0 && AppWebUpdate.firmware !="" && AppWebUpdate.version !="";
           }
 
           _end:
-          log_w("Restarting webserver");
+          dataStr = String();
+          log_d("Restarting webserver");
           WebServer::server.begin();
           Needle::setup();
-          return ret;
+
+          return (parsed && AppWebUpdate.updatable) ? AppWebUpdate.firmware : ""; //ret;
         }
 
       #endif

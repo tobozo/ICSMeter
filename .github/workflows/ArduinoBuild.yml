@@ -9,7 +9,7 @@ env:
 
 on:
   push: # see: https://help.github.com/en/actions/reference/events-that-trigger-workflows#pull-request-event-pull_request
-    branches-ignore: [ghpages]
+    branches-ignore: [gh-pages]
     paths:
     - '**.ino'
     - '**.cpp'

@@ -151,15 +151,29 @@ namespace ICSMeter
           http.setFollowRedirects( HTTPC_FORCE_FOLLOW_REDIRECTS ); // handle 301 redirects gracefully
           http.setUserAgent( USER_AGENT );
           http.setConnectTimeout( 10000 ); // 10s timeout = 10000
+
+          const char * headerkeys[] = { "Content-Length" };
+          size_t headerkeyssize = sizeof(headerkeys) / sizeof(char*);
+          size_t contentLength = UPDATE_SIZE_UNKNOWN;
+
+          // track these headers
+          http.collectHeaders(headerkeys, headerkeyssize);
+
           if( ! http.begin(*client, url ) ) {
             log_e("Can't open url %s", url );
             return false;
           }
           int httpCode = http.GET();
+
           if( httpCode != 200 ) {
             log_w("Not 200 response: %d", httpCode );
             http.end();
             return false;
+          }
+
+          if(http.hasHeader("Content-Length")) {
+            contentLength = atol( http.header("Content-Length: ").c_str() );
+            log_d("Got %d bytes from server", contentLength);
           }
 
           Stream* streamptr = http.getStreamPtr();
@@ -170,7 +184,7 @@ namespace ICSMeter
           }
 
           gzInit();
-          if( !GZUnpacker->gzStreamUpdater( streamptr, UPDATE_SIZE_UNKNOWN, 0, false ) ) {
+          if( !GZUnpacker->gzStreamUpdater( streamptr, contentLength, 0, false ) ) {
             Serial.printf("tarGzStreamUpdater failed with return code #%d\n", GZUnpacker->tarGzGetError() );
             return false;
           }
