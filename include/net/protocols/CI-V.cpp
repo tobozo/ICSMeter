@@ -86,6 +86,25 @@ namespace ICSMeter
       }
 
 
+      bool setMeterSubscription( Measure::MeasureModes_t mode )
+      {
+        using namespace proxy;
+        switch ( mode ) {
+          case Measure::MODE_PWR: meter_subscription = meter_subscriptions[0]; break;
+          case Measure::MODE_SMT: meter_subscription = meter_subscriptions[1]; break;
+          case Measure::MODE_SWR: meter_subscription = meter_subscriptions[2]; break;
+          default:
+            log_e("Unhandled meter mode: %d", mode );
+            return false;
+          break;
+        }
+        log_d("Meter subscription set to %s", meter_subscription->label );
+        subscriptions[3] = meter_subscription;
+        return true;
+      }
+
+
+
       void setIC( uint8_t choice, uint8_t address )
       {
         setICModel( choice );

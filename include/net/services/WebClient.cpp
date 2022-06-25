@@ -17,7 +17,8 @@ namespace ICSMeter
 
       #define QUOTE_X(t)#t
       #define QUOTE(t)QUOTE_X(t)
-      #define subscribe_url PROXY_URL ":" QUOTE(PROXY_PORT) "/subscribe"
+      #define subscribe_url   PROXY_URL ":" QUOTE(PROXY_PORT) "/subscribe"
+      #define unsubscribe_url PROXY_URL ":" QUOTE(PROXY_PORT) "/unsubscribe"
       #define command_url   PROXY_URL ":" QUOTE(PROXY_PORT) "/?civ="
 
       HTTPClient http;
@@ -39,7 +40,7 @@ namespace ICSMeter
         log_i("Running subscriptions");
         WebClient::has_subscriptions = subscribeAll();
         if( !WebClient::has_subscriptions ) {
-          log_i("Proxy does not support websockets or is down");
+          log_e("Proxy does not support websockets or is down");
           proxy::setFlag( PROXY_OFFLINE );
         } else {
           proxy::setFlag( PROXY_ONLINE );
@@ -47,8 +48,17 @@ namespace ICSMeter
       }
 
 
+      bool renewSubscriptions()
+      {
+        if( WebClient::subscribeAll( true ) ) {
+          CIV::setMeterSubscription( Measure::mode );
+          return WebClient::subscribeAll( false );
+        }
+        return false;
+      }
 
-      bool subscribeAll()
+
+      bool subscribeAll( bool unsubscribe )
       {
         if( !WebServer::isRunning ) {
           log_e("Ignoring attempt to start subscriptions while webserver is not running");
@@ -58,19 +68,20 @@ namespace ICSMeter
         int succeeded = 0;
 
         for( int i=0; i<proxy::subscriptions_count; i++ ) {
-          succeeded += WebClient::subscribe( proxy::subscriptions[i] ) ? 1 : 0;
+          log_e("Proceeding to subscription #%d", i );
+          succeeded += WebClient::subscribe( proxy::subscriptions[i], unsubscribe ) ? 1 : 0;
         }
         bool ret = succeeded == proxy::subscriptions_count;
         if( !ret ) {
           log_e("Subscriptions count mismatch: got %d, was expecting %d", succeeded, proxy::subscriptions_count );
         } else {
-          log_e("Subscriptions complete: got %d threads", proxy::subscriptions_count );
+          log_i("%s complete: got %d threads", (unsubscribe ? "Unsubscriptions" : "Subscriptions"), proxy::subscriptions_count );
         }
         return ret;
       }
 
 
-      bool subscribe( civ_subscription_t *sub )
+      bool subscribe( civ_subscription_t *sub, bool unsubscribe )
       {
         if( !wifi::available() ) {
           log_e("No WiFi :-(");
@@ -78,14 +89,9 @@ namespace ICSMeter
         }
         bool ret = false;
 
-        //HTTPClient http;
         WiFiClient client;
-
         //http.setTimeout(1);           // HTTPClient.h => setTimeout(uint16_t timeout) set the timeout (seconds) for the incoming connection
-        //http.setConnectTimeout(1000); // HTTPClient.h => setConnectTimeout(int32_t connectTimeout) set the timeout (milliseconds) outgoing connection
-
-        http.begin( client, subscribe_url );
-        //http.addHeader("User-Agent", USER_AGENT );
+        http.begin( client, unsubscribe ? unsubscribe_url : subscribe_url );
         http.setUserAgent( USER_AGENT );
 
         String requestStr = "";
@@ -104,13 +110,23 @@ namespace ICSMeter
           response.trim();
           int sub_id = atoi( response.c_str() );
           if( response != "" && sub_id > -1 ) {
-            sub->subscription_id = sub_id;
-            sub->subscribed = true;
-            log_i("Successfully subscribed to '%s', got subscription_id=%d", requestStr.c_str(), sub_id );
-            ret = true;
+            if(!unsubscribe) {
+              sub->subscription_id = sub_id;
+              sub->subscribed = true;
+              log_i("Successfully subscribed '%s' to '%s', got subscription_id=%d", sub->label, requestStr.c_str(), sub_id );
+              ret = true;
+            } else {
+              if( sub_id == sub->subscription_id ) {
+                log_i("Successfully unsubscribed '%s' / '%s' (subscription_id=%d)", sub->label, requestStr.c_str(), sub_id );
+                sub->subscribed = false;
+                ret = true;
+              } else {
+                log_e("Unsub mismatch! '%s' / '%s' (subscription_id=%d, was expecting %d)", sub->label, requestStr.c_str(), sub_id, sub->subscription_id );
+              }
+            }
           } else {
             // Python error, or old ICUSBProxy.py somehow responding to POST ?
-            log_e("Failed to read subscription ID from response (resp=%s)", response.c_str() );
+            log_e("Failed to read subscription ID from response (resp=%s)", response!="" ? response.c_str() : "[empty response]" );
           }
         }
 
@@ -131,11 +147,9 @@ namespace ICSMeter
         bool ret = false;
 
         WiFiClient client;
-
         //http.setTimeout(1);           // HTTPClient.h => setTimeout(uint16_t timeout) set the timeout (seconds) for the incoming connection
         http.setConnectTimeout(1000); // HTTPClient.h => setConnectTimeout(int32_t connectTimeout) set the timeout (milliseconds) outgoing connection
         //client.setTimeout( 5 );    // WiFiClient.h => setTimeout(uint32_t seconds) set the timeout for the client waiting for incoming data
-
 
         String command = "";
 
@@ -191,7 +205,7 @@ namespace ICSMeter
           String response = http.getString(); // Get data
 
           if( httpCode == 404 || httpCode == 500 ) {
-            log_i("awww this proxy is not doing well (HTTP Error Code: %d, response: %s", httpCode, response.c_str() );
+            log_w("awww this proxy is not doing well (HTTP Error Code: %d, response: %s", httpCode, response.c_str() );
             proxy::setFlag( PROXY_ONLINE );
             proxy::setFlag( TX_OFFLINE );
           } else {
@@ -297,10 +311,10 @@ namespace ICSMeter
                 AppWebUpdate.last_update = mktime( &time );
                 // compare remote build time to local build time (also cheat on tz_offset)
                 if( AppWebUpdate.last_update > __TIME_UNIX__ ) {
-                  log_d("Updatable - Remote=%d, Local=%d", AppWebUpdate.last_update, __TIME_UNIX__ );
+                  log_i("Updatable - Remote=%d, Local=%d", AppWebUpdate.last_update, __TIME_UNIX__ );
                   AppWebUpdate.updatable = true;
                 } else {
-                  log_d("Already up to date - Remote=%d, Local=%d", AppWebUpdate.last_update, __TIME_UNIX__ );
+                  log_i("Already up to date - Remote=%d, Local=%d", AppWebUpdate.last_update, __TIME_UNIX__ );
                 }
               }
               contents += len;
@@ -312,9 +326,7 @@ namespace ICSMeter
           dataStr = String();
           log_d("Restarting webserver");
           WebServer::server.begin();
-          Needle::setup();
-
-          //return (parsed && AppWebUpdate.updatable) ? AppWebUpdate.firmware : ""; //ret;
+          Needle::setup(); // will probably fail as SSL gnawed a lot of heap
         }
 
       #endif

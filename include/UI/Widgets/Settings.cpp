@@ -329,6 +329,7 @@ namespace ICSMeter
 
         if(buttons::btnB) {
           Measure::save();
+          Measure::onModeChange();
           exitSettingsMenu();
           return;
         }

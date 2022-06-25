@@ -54,6 +54,7 @@ namespace ICSMeter
       void setup()
       {
         mode = (MeasureModes_t)prefs::get("measure", 1);
+        CIV::setMeterSubscription( mode );
       }
 
 
@@ -63,6 +64,14 @@ namespace ICSMeter
         if( mode != tmp ) {
           prefs::set("measure", mode);
           oldMode = tmp;
+        }
+      }
+
+
+      void onModeChange()
+      {
+        if( WebClient::has_subscriptions ) {
+          WebClient::renewSubscriptions();
         }
       }
 

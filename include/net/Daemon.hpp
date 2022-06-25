@@ -205,6 +205,7 @@ namespace ICSMeter
 
     struct civ_subscription_t
     {
+      const char* label;
       const CIV::command_t *command;
       uint8_t response_size; // bytes
       float polling_freq;    // seconds
@@ -217,8 +218,9 @@ namespace ICSMeter
     namespace WebClient
     {
       void setup();
-      bool subscribeAll();
-      bool subscribe( civ_subscription_t *sub );
+      bool subscribeAll(  bool unsubscribe = false );
+      bool subscribe( civ_subscription_t *sub, bool unsubscribe = false );
+      bool renewSubscriptions();
       bool sendCommand( char *request, size_t request_size, char *resp, uint8_t response_size );
       bool has_subscriptions = false;
       #if defined UPDATER_URL
@@ -256,7 +258,9 @@ namespace ICSMeter
       const uint32_t max_errors = 100; // mark the proxy as offline when this threshold is reached
       uint32_t check_frequency = 5000; // delay between end of last request and next request
       uint32_t last_check = millis();
-      extern civ_subscription_t *subscriptions[8];
+      extern civ_subscription_t *subscriptions[];
+      extern civ_subscription_t *meter_subscriptions[];
+      extern civ_subscription_t *meter_subscription;
       extern size_t subscriptions_count;
     };
 
