@@ -36,7 +36,7 @@ name           = "ICUSBProxy"
 version        = "0.1.0"
 client_timeout = 0.01
 server_verbose = 1
-demo_mode      = 0 # use this when no IC is actually connected, will send dummy data
+demo_mode      = 1 # use this when no IC is actually connected, will send dummy data
 
 UARTS      = [] # UART's are shared between HTTP Server and WebSockets/Serial thread, but also across M5 Devices
 uart_count = 0
@@ -45,46 +45,68 @@ M5Clients  = [] # M5Stack devices with registered subscriptions
 connected_serial_ports = [] # currently connected COM/tty ports, repopulated every second
 last_message = "" # to avoid repeated messages in the console
 
+#['New data: ', b'\xfe\xfe\xe0\xa4\x1c\x00\x00\xfd']
+#['New data: ', b'\xfe\xfe\xe0\xa4\x1a\x06\x00\x00\xfd']
+#['New data: ', b'\xfe\xfe\xe0\xa4\x15\x02\x00\x00\xfd']
+#['New data: ', b'\xfe\xfe\xe0\xa4\x15\x11\x00\x00\xfd']
+#['New data: ', b'\xfe\xfe\xe0\xa4\x15\x12\x00\x00\xfd']
+#['New data: ', b'\xfe\xfe\xe0\xa4\xfa\xfd']
+
+packet_header = 'fefe'
+packet_footer = 'fd'
+
+
+def civ_response_packet( in_address, out_address, cmd ):
+    global packet_header, packet_footer
+    return packet_header + out_address + in_address + cmd + packet_footer
 
 
 
 def demo_response( in_address, out_address, msg ):
     if   msg == '03fd' or msg == '03fd00':   # CIV_CHECK (ping)
-        return 'fefe' + out_address + in_address + '1c0001fd' # pong !
+        return civ_response_packet( in_address, out_address, '1c0001' )
+        #return 'fefe' + out_address + in_address + '1c0001fd' # pong !
     elif msg == '1c00fd': # CIV_GET_TX // Send/read the transceiver’s status (00=RX, 01=TX)
         #    1c00fd --> fefee0' + clt_address + '1c0000fd (TX OFF)
         #    1c00fd --> fefee0' + clt_address + '1c0001fd (TX ON)
-        return 'fefe' + out_address + in_address + '1c0001fd'
+        return civ_response_packet( in_address, out_address, '1c0001' )
+        #return 'fefe' + out_address + in_address + '1c0001fd'
     elif msg == 'e004fd': # CIV_GET_MOD
         #    e004fd --> fefee0' + clt_address + '040501fd (FIL1, FM)
         #    e004fd --> fefee0' + clt_address + '040502fd (FIL2, FM)
         #    e004fd --> fefee0' + clt_address + '040103fd (FIL3, USB)
         mod = random.choice(['040501fd', '040502fd', '040103fd'])
-        return 'fefe' + out_address + in_address + mod
+        return civ_response_packet( in_address, out_address, mod )
+        #return 'fefe' + out_address + in_address + mod
     elif msg == 'e003fd': # CIV_GET_FRQ
         #    e003fd --> fefee0' + clt_address + '030050973404fd (434.975.000)
         #    e003fd --> fefee0' + clt_address + '030000504501fd (145.500.000)
         freq =  '0300{0:0{1}x}fd'.format( int( random.uniform( 0x00504501, 0x50973404 ) ), 8 )
-        return 'fefe' + out_address + in_address + freq
+        return civ_response_packet( in_address, out_address, freq )
+        #return 'fefe' + out_address + in_address + freq
     elif msg == '1502fd': # CIV_GET_SMETER // Read S-meter level (0000=S0, 0120=S9, 0241=S9+60 dB)
         #    1502fd --> fefee0' + clt_address + '15020000fd (valeur du SMetre --> 0000)
         #    1502fd --> fefee0' + clt_address + '15020192fd (valeur du SMetre --> 0192)
         smeter = '1502{0:04d}fd'.format( int( random.uniform( 0, 192 ) ) )
-        return 'fefe' + out_address + in_address + smeter
+        return civ_response_packet( in_address, out_address, smeter )
+        #return 'fefe' + out_address + in_address + smeter
     elif msg == '1511fd': # CIV_GET_PWR // Read the Po meter level (0000=0% ~ 0143=50% ~ 0213=100%)
         #    1511fd --> fefee0' + clt_address + '15110000fd (valeur du PWR --> 0000)
         #    1511fd --> fefee0' + clt_address + '15110074fd (valeur du PWR --> 0074)
         pwr = '151100{0:02d}fd'.format( int( random.uniform( 0, 74 ) ) )
-        return 'fefe' + out_address + in_address + pwr
+        return civ_response_packet( in_address, out_address, pwr )
+        #return 'fefe' + out_address + in_address + pwr
     elif msg == '1512fd': # CIV_GET_SWR // Read SWR meter level (0000=SWR1.0, 0048=SWR1.5, 0080=SWR2.0, 0120=SWR3.0)
         #    1512fd --> fefee0' + clt_address + '15120000fd (valeur du SWR --> 0000)
         #    1512fd --> fefee0' + clt_address + '15120027fd (valeur du SWR --> 0027)
         swr = '151200{0:02d}fd'.format( int( random.uniform( 0, 27 ) ) )
-        return 'fefe' + out_address + in_address + '15120000fd'
+        return civ_response_packet( in_address, out_address, '15120000' )
+        #return 'fefe' + out_address + in_address + '15120000fd'
     elif msg == '1a06fd': # CIV_GET_DATA_MODE // Send/read the DATA mode setting
         #    1a06fd --> fefee0' + clt_address + '1a060000fd (Mode Data désacté)
-        #    1a06fd --> fefee0' + clt_address + '1a060101fd (Mod Data activé)
-        return 'fefe' + out_address + in_address + '1a060101fd'
+        #    1a06fd --> fefee0' + clt_address + '1a060101fd (Mode Data activé)
+        return civ_response_packet( in_address, out_address, '1a060000' )
+        #return 'fefe' + out_address + in_address + '1a060000fd'
     else:
         #print( clt_address, msg )
         return False
@@ -171,7 +193,7 @@ def WSEmit( client, message ):
     try:
         client.ws.send( message )
     except Exception as e:
-        ConsolePrintMessage("Reconnecting")
+        ConsolePrintMessage("A WebSocket connection failed, retrying...")
         try:
             client.ws.connect("ws://"+client.host+"/ws", origin="icusbproxy.local")
         except Exception as e:
@@ -188,7 +210,7 @@ def Poll( M5Client, subscription ):
         try:
             subscription.uart.serial = initSerial(  subscription.uart.tty, subscription.uart.bauds )
             if subscription.uart.serial !=None:
-                ConsolePrintMessage( "Opening UART " + subscription.uart.tty + " succeeded" )
+                ConsolePrintMessage("Opening UART " + subscription.uart.tty + " succeeded" )
             else:
                 return False
             #return True
@@ -216,7 +238,7 @@ def Poll( M5Client, subscription ):
         else:
             if subscription.last_response != response:
                 subscription.last_response = response
-                ConsolePrintMessage(["New data: ", data])
+                ConsolePrintMessage(["cmd=", subscription.cmd, "resp=", data])
                 WSEmit( M5Client, response )
             return True
     except Exception as e:
@@ -398,9 +420,11 @@ class S(BaseHTTPRequestHandler):
         elif self.path == '/unsubscribe':
             for idx, subscription in enumerate(M5Client.subscriptions):
                 if subscription.uart.id == sub.uart.id and subscription.cmd == sub.cmd:
-                    self._set_response()
+                    removed_id = subscription.id
                     M5Client.subscriptions.remove( subscription )
                     ConsolePrintMessage("Removed subscription: " + sub.cmd )
+                    self._set_response()
+                    self.wfile.write("{}".format(removed_id).encode('utf-8'))
                     return
             ConsolePrintMessage("Subscription " + sub.cmd + " doesn't exist or has already been removed")
             self._set_error()
