@@ -226,7 +226,6 @@ namespace ICSMeter
       bool has_subscriptions = false;
       #if defined UPDATER_URL
         extern HTTPClient http;
-        extern WiFiClientSecure client;
       #endif
     }
 

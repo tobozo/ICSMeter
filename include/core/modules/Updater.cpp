@@ -145,7 +145,7 @@ namespace ICSMeter
 
         bool gzStreamUpdate( const char* url )
         {
-          HTTPClient http;
+          using namespace WebClient;
           WiFiClientSecure *client = new WiFiClientSecure;
           client->setInsecure();
           http.setFollowRedirects( HTTPC_FORCE_FOLLOW_REDIRECTS ); // handle 301 redirects gracefully
