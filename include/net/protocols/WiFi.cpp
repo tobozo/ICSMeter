@@ -68,8 +68,12 @@ namespace ICSMeter
           return;
         }
 
+        if( WebServer::msg_queue.size() > 0 ) {
+          WebServer::handleMsgQueue();
+        }
 
         if( !CIV::txConnected && CIV::last_poll + CIV::poll_timeout < millis() ) {
+
           if( CIV::had_success ) {
 
             if( retries == 0 ) {
@@ -77,10 +81,11 @@ namespace ICSMeter
               log_e("Max retries reached, giving up");
               return;
             }
+            retries--;
 
             const uint32_t now = millis();
             const uint32_t retryafter = 5000;
-            if( retrytimer + retryafter < millis() ) {
+            if( retrytimer + retryafter < now ) {
               // retry subscriptions
               WebClient::setup();
               retrytimer = millis();

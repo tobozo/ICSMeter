@@ -41,7 +41,6 @@ namespace ICSMeter
         if( filter_needs_redraw() || mode_needs_redraw() ) {
           return true;
         }
-
         return false;
       }
 

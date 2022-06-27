@@ -41,7 +41,7 @@ namespace ICSMeter
       };
 
 
-      char buffer[8]; // shared buffer
+      char buffer[16]; // shared buffer
       char request[7] = { CIV_HDR, CIV_HDR, CIV_ADR, CIV_STA, CIV_NUL, CIV_NUL, CIV_END }; // basic CIV request (3 last bytes=command)
       size_t request_size = sizeof(request) / sizeof(request[0]);
 
@@ -57,7 +57,7 @@ namespace ICSMeter
 
       void loop()
       {
-        if( last_poll + poll_timeout < millis() ) {
+        if( CIV::last_poll + CIV::poll_timeout < millis() ) {
           CIV::txConnected = false;
         } else {
           CIV::txConnected = true;
@@ -195,8 +195,62 @@ namespace ICSMeter
           log_i("Needle: %d, packet=%s", decvalue, packet.c_str() );
         }
 
+        // if( ret && buffer[4]==CIV_FRQ ) {
+        //   //uint8_t decvalue = getDec( buffer[6], buffer[7] );
+        //   uint64_t frq = 0;
+        //   for (uint8_t i = 2; i < 7; i++) {
+        //     frq += (buffer[9 - i] >> 4) * decMulti[(i - 2) * 2];
+        //     frq += (buffer[9 - i] & 0x0F) * decMulti[(i - 2) * 2 + 1];
+        //   }
+        //
+        //   if (Transverter::get() > 0) {
+        //     frq += double(Transverter::choices[Transverter::get()]);
+        //   }
+        //
+        //   log_i("Freq: %d, packet=%s", frq, packet.c_str() );
+        // }
+
         return ret;
       }
+
+
+      char tmpStr[3] = {0,0,0};
+      char freqValueStr[9];// = {0,0,0,0,0,0,0,0,0};
+
+      int64_t parse_freq( uint8_t* buffer )
+      {
+        uint8_t valuepos = 0;
+        //Serial.println();
+        Serial.print("Freq --> " );
+        for( uint8_t i=8;i>=5;i-- ) {
+          snprintf( tmpStr, 3, "%02x", buffer[i] );
+          Serial.printf( "0x%s ", tmpStr );
+          freqValueStr[valuepos]   = tmpStr[0];
+          freqValueStr[valuepos+1] = tmpStr[1];
+          valuepos+=2;
+        }
+        freqValueStr[8] = 0; // terminate string
+        Serial.printf("= '%s'", freqValueStr );
+
+        int64_t frq = atoll( freqValueStr );
+
+        Serial.printf("->atoi()='%llu' ", frq );
+
+        int8_t transverter_choice = Transverter::get();
+        //size_t transverter_values_count = sizeof( Transverter::choices );
+
+        if( transverter_choice > 0 && transverter_choice < Transverter::choices_count ) {
+          int64_t transverter_value = Transverter::choices[transverter_choice];
+          //frq += int( Transverter::choices[Transverter::get()] );
+          Serial.printf("+transverter(%llu)='%llu' (%d bytes free)", transverter_value, frq+transverter_value, ESP.getFreeHeap() );
+          //status.freq += double(Transverter::choices[Transverter::get()]);
+        }
+
+        Serial.println();
+
+        return frq;
+      }
+
 
 
       bool parse( uint8_t* buffer, size_t buffer_size )
@@ -206,7 +260,7 @@ namespace ICSMeter
         }
 
         switch( buffer[4] ) {
-          case CIV_CHK:  /* proxy status online/offline */ break;
+          //case CIV_CHK:  /* proxy status online/offline */ break;
           case CIV_GTX:  status.tx       = buffer[4]; break;
           case CIV_DAT:  status.datamode = buffer[4]; DataMode::updateValues(); break;
           case CIV_MTR:
@@ -223,32 +277,22 @@ namespace ICSMeter
             }
           }
           case CIV_MOD:
-            status.mode   = buffer[3];
-            status.filter = buffer[4];
-            DataMode::updateValues();
+            status.mode   = buffer[6];
+            status.filter = buffer[5];
+            //DataMode::updateValues();
           break;
           break;
-          case CIV_STA:
-            switch( buffer[5] ) {
-              case CIV_FRQ:
-                if( buffer_size < 7 ) {
-                  log_e("Invalid CIV_FRQ packet (expecting at least 8 bytes, got %d", buffer_size );
-                  break;
-                }
-                status.freq = 0;
-                for (uint8_t i = 2; i < 7; i++) {
-                  status.freq += (buffer[9 - i] >> 4) * decMulti[(i - 2) * 2];
-                  status.freq += (buffer[9 - i] & 0x0F) * decMulti[(i - 2) * 2 + 1];
-                }
-                if (Transverter::get() > 0) {
-                  status.freq += double(Transverter::choices[Transverter::get()]);
-                }
-                log_i("Freq: %d", status.freq );
-              break;
-              default:
-                log_e("Unsupported CIV_%02x target for CIV_STA()", buffer[5] );
-                return false;
-              break;
+          case CIV_FRQ:
+            {
+              // fe fe e0 a4 03   00 80 19 14 00    fd (=14.198.00)
+              if( buffer_size != 11 ) {
+                log_e("Invalid CIV_FRQ packet (expecting at 11 bytes, got %d", buffer_size );
+                break;
+              }
+              status.freq = parse_freq( buffer );
+              //status.freq = frq;
+
+              log_i("Freq: %llu", status.freq );
             }
           break;
           default:

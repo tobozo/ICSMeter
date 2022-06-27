@@ -22,7 +22,7 @@ namespace ICSMeter
       #define command_url   PROXY_URL ":" QUOTE(PROXY_PORT) "/?civ="
 
       HTTPClient http;
-      //WiFiClient client;
+      WiFiClient client;
 
       // called by WiFi event STA_GOT_IP
       void setup()
@@ -67,9 +67,20 @@ namespace ICSMeter
 
         int succeeded = 0;
 
+
+        float hitspersec = 0;
+
         for( int i=0; i<proxy::subscriptions_count; i++ ) {
-          log_e("Proceeding to subscription #%d", i );
+          hitspersec += 1.0 / proxy::subscriptions[i]->polling_freq;
+        }
+
+        TickType_t xLastSubTime;
+        const TickType_t delayAfterSub = 1000.0 / (hitspersec>0?hitspersec:1);
+
+        for( int i=0; i<proxy::subscriptions_count; i++ ) {
+          log_e("Proceeding to subscription #%d (%d bytes free)", i, ESP.getFreeHeap() );
           succeeded += WebClient::subscribe( proxy::subscriptions[i], unsubscribe ) ? 1 : 0;
+          vTaskDelayUntil( &xLastSubTime, delayAfterSub );
         }
         bool ret = succeeded == proxy::subscriptions_count;
         if( !ret ) {
@@ -89,7 +100,7 @@ namespace ICSMeter
         }
         bool ret = false;
 
-        WiFiClient client;
+        //WiFiClient client;
         //http.setTimeout(1);           // HTTPClient.h => setTimeout(uint16_t timeout) set the timeout (seconds) for the incoming connection
         http.begin( client, unsubscribe ? unsubscribe_url : subscribe_url );
         http.setUserAgent( USER_AGENT );
@@ -146,7 +157,7 @@ namespace ICSMeter
 
         bool ret = false;
 
-        WiFiClient client;
+        //WiFiClient client;
         //http.setTimeout(1);           // HTTPClient.h => setTimeout(uint16_t timeout) set the timeout (seconds) for the incoming connection
         http.setConnectTimeout(1000); // HTTPClient.h => setConnectTimeout(int32_t connectTimeout) set the timeout (milliseconds) outgoing connection
         //client.setTimeout( 5 );    // WiFiClient.h => setTimeout(uint32_t seconds) set the timeout for the client waiting for incoming data
@@ -227,7 +238,7 @@ namespace ICSMeter
 
         void GetJSONVersionList( String *response )
         {
-          HTTPClient http;
+          //HTTPClient http;
           WiFiClientSecure *client = new WiFiClientSecure;
           int httpCode;
           String url = String( UPDATER_URL ) + ( tft.getBoard()==m5gfx::boards::board_t::board_M5StackCore2 ? "m5stack-core2.json" : "m5stack-core-esp32.json" );

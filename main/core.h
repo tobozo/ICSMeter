@@ -18,6 +18,9 @@
   #define FASTLED_INTERNAL // To disable pragma messages on compile
 #endif
 
+#include <queue> // array substitute for queued messages
+
+
 // filesystem
 
 #if defined USE_LITTLEFS

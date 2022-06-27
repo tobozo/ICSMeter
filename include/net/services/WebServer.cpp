@@ -46,51 +46,35 @@ namespace ICSMeter
       }
 
 
+      //void parseMessageTask( void* param )
+      void handleMsgQueue()
+      {
+        if( msg_queue.size() > 0 ) {
+          while( CIV::parsing ) vTaskDelay(100);
+          CIV::parsing = true;
+          String msg = msg_queue.front();
+          if( CIV::parse( msg ) ) {
+            proxy::setFlag( PROXY_ONLINE );
+            proxy::setFlag( TX_ONLINE );
+            CIV::last_poll = millis();
+          }
+          msg_queue.pop();
+          CIV::parsing = false;
+        }
+      }
 
-      void processWsMessage( AsyncWebSocketClient * client, String msg )
+
+
+      void processWsMessage( String msg )
       {
         static String lastMsg = "";
-
-        if( msg == "ping" ) {
-          client->text("pong");
-          goto _end;
-        }
-
-        if( msg == "/screenshot.bmp" ) {
-          // TODO: create and detach task that will send screenshot to client via websocket
-          // BMPStreamReader->setup();
-          // size_t chunk_size = 4096;
-          // max_chunks = ceil( BMPStreamReader->filesize / chunk_size );
-          // uint8_t* buffer = (uint8_t*)calloc( chunk_size, 1 );
-          // for( chunk_id=0; chunk_id<max_chunks; chunk_id++ ) {
-          //   size_t bytes_read = BMPStreamReader->read(buffer, chunk_size, chunk_size*chunk_id);
-          //   if( bytes_read > 0 ) {
-          //     client->binary( {chunk_id} );
-          //     client->binary( buffer );
-          //   }
-          // }
-          // free( buffer );
-          goto _end;
-        }
-
-        if( lastMsg == msg ) return; // no spam
 
         if( msg == "UART DOWN" ) {
           proxy::setFlag( TX_OFFLINE );
           log_e("UART DOWN");
-          goto _end;
+        } else if( lastMsg != msg ) { // no spam
+          msg_queue.push( msg );
         }
-
-        if( CIV::parse( msg ) ) {
-          proxy::setFlag( PROXY_ONLINE );
-          proxy::setFlag( TX_ONLINE );
-          CIV::last_poll = millis();
-          //log_w("Valid CIV packet: %s", msg.c_str() );
-        } else {
-          //log_w("Invalid CIV packet: %s", msg.c_str() );
-        }
-
-        _end:
 
         lastMsg = msg;
       }
@@ -101,11 +85,12 @@ namespace ICSMeter
       {
         const size_t msg_max_len = 128; // we're dealing with short strings here
         proxy::last_check = millis();
+        String WS_msg = "";
 
         if(type == WS_EVT_CONNECT){
           log_d("ws[%s][%u] connect", server->url(), client->id());
-          client->printf("Hello Client %u :)", client->id());
-          client->ping();
+          client->printf("Hello Proxy Client %u :)", client->id());
+          //client->ping();
           wsClient = client;
         } else if(type == WS_EVT_DISCONNECT){
           log_d("ws[%s][%u] disconnect", server->url(), client->id());
@@ -116,15 +101,21 @@ namespace ICSMeter
           log_d("ws[%s][%u] pong[%u]: %s", server->url(), client->id(), len, (len)?(char*)data:"");
         } else if(type == WS_EVT_DATA) {
           AwsFrameInfo * info = (AwsFrameInfo*)arg;
-          String msg = "";
+          WS_msg = "";
           if(info->final && info->index == 0 && info->len == len) {
             // message is complete
             for(size_t i=0; i < info->len; i++) {
-              msg += (char) data[i];
-              if( msg.length()>=msg_max_len ) break;
+              WS_msg += (char) data[i];
+              if( WS_msg.length()>=msg_max_len ) break;
             }
 
-            processWsMessage( client, msg );
+            if( WS_msg == "ping" ) {
+              client->text("pong");
+            } else {
+              client->text("ok");
+              Serial.printf("Deferring message (%d in queue, %d bytes free, msg=%s, clid=%d)\n", msg_queue.size(), ESP.getFreeHeap(), WS_msg.c_str(), client->id() );
+              processWsMessage( WS_msg );
+            }
 
           } else {
             // message or frame is split
@@ -138,22 +129,23 @@ namespace ICSMeter
 
             if(info->opcode == WS_TEXT){
               for(size_t i=0; i < len; i++) {
-                msg += (char) data[i];
-                if( msg.length()>=msg_max_len ) break;
+                WS_msg += (char) data[i];
+                if( WS_msg.length()>=msg_max_len ) break;
               }
             } else {
               char buff[3];
               for(size_t i=0; i < len; i++) {
                 sprintf(buff, "%02x ", (uint8_t) data[i]);
-                msg += buff;
-                if( msg.length()>=msg_max_len ) break;
+                WS_msg += buff;
+                if( WS_msg.length()>=msg_max_len ) break;
               }
             }
 
             if((info->index + len) == info->len) {
               log_d("ws[%s][%u] frame[%u] end[%llu]", server->url(), client->id(), info->num, info->len);
               if(info->final) {
-                processWsMessage( client, msg );
+                client->text("ok");
+                processWsMessage( WS_msg );
                 log_d("ws[%s][%u] %s-message end", server->url(), client->id(), (info->message_opcode == WS_TEXT)?"text":"binary");
               }
             }

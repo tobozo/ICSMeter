@@ -11,14 +11,14 @@ namespace ICSMeter
       using namespace daemon;
       using namespace UI;
 
-      civ_subscription_t CIV_CHECK_SUB          = { "Ping",   &CIV::CIV_CHECK,         6, 5, 0, false };
-      civ_subscription_t CIV_GET_TX_SUB         = { "TX",     &CIV::CIV_GET_TX,        5, 1, 0, false };
-      civ_subscription_t CIV_GET_DATA_MODE_SUB  = { "DAT",    &CIV::CIV_GET_DATA_MODE, 6, 1, 0, false };
-      civ_subscription_t CIV_GET_SMETER_SUB     = { "SMeter", &CIV::CIV_GET_SMETER,    6, 1, 0, false };
-      civ_subscription_t CIV_GET_PWR_SUB        = { "PWR",    &CIV::CIV_GET_PWR,       6, 1, 0, false };
-      civ_subscription_t CIV_GET_SWR_SUB        = { "SWR",    &CIV::CIV_GET_SWR,       6, 1, 0, false };
-      civ_subscription_t CIV_GET_FRQ_SUB        = { "FRQ",    &CIV::CIV_GET_FRQ,       8, 1, 0, false };
-      civ_subscription_t CIV_GET_MOD_SUB        = { "MOD",    &CIV::CIV_GET_MOD,       5, 1, 0, false };
+      civ_subscription_t CIV_CHECK_SUB          = { "Ping",   &CIV::CIV_CHECK,         6, 5,   0, false };
+      civ_subscription_t CIV_GET_TX_SUB         = { "TX",     &CIV::CIV_GET_TX,        5, 1,   0, false };
+      civ_subscription_t CIV_GET_DATA_MODE_SUB  = { "DAT",    &CIV::CIV_GET_DATA_MODE, 6, 1,   0, false };
+      civ_subscription_t CIV_GET_SMETER_SUB     = { "SMeter", &CIV::CIV_GET_SMETER,    6, 0.5, 0, false };
+      civ_subscription_t CIV_GET_PWR_SUB        = { "PWR",    &CIV::CIV_GET_PWR,       6, 0.5, 0, false };
+      civ_subscription_t CIV_GET_SWR_SUB        = { "SWR",    &CIV::CIV_GET_SWR,       6, 0.5, 0, false };
+      civ_subscription_t CIV_GET_FRQ_SUB        = { "FRQ",    &CIV::CIV_GET_FRQ,       8, 1,   0, false };
+      civ_subscription_t CIV_GET_MOD_SUB        = { "MOD",    &CIV::CIV_GET_MOD,       5, 1,   0, false };
 
       civ_subscription_t *meter_subscriptions[3] =
       {

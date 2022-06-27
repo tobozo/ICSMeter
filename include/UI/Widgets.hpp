@@ -117,7 +117,8 @@ namespace ICSMeter
       void   set( int8_t _value );
       void   save();
       void   draw( bool force_redraw = false );
-      constexpr const double choices[] = { 0, TRANSVERTER_LO_1, TRANSVERTER_LO_2, TRANSVERTER_LO_3, TRANSVERTER_LO_4, TRANSVERTER_LO_5 };
+      constexpr const int64_t choices[] = { 0, TRANSVERTER_LO_1, TRANSVERTER_LO_2, TRANSVERTER_LO_3, TRANSVERTER_LO_4, TRANSVERTER_LO_5 };
+      constexpr const size_t choices_count = sizeof( Transverter::choices );
     };
 
 

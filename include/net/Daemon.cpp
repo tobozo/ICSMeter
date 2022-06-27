@@ -42,6 +42,7 @@ namespace ICSMeter
       void daemonTask(void *pvParameters)
       {
         using namespace modules;
+
         daemon::setup();
 
         for (;;) {
@@ -61,11 +62,8 @@ namespace ICSMeter
             } else {
               // tx lost because IC off or python proxy down
             }
-
-
           }
-
-          vTaskDelay( 10 );
+          vTaskDelay( 100 );
         }
       }
 

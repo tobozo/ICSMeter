@@ -10,14 +10,14 @@ namespace ICSMeter
     {
 
       const uint32_t poll_delay = 25; // min delay (milliseconds) between each button poll
-      static uint32_t last_poll = millis();
+      uint32_t last_poll = millis();
 
       void loop()
       {
         uint32_t now = millis();
 
-        if( last_poll + poll_delay > now ) return;
-        last_poll = now;
+        if( buttons::last_poll + buttons::poll_delay > now ) return;
+        buttons::last_poll = now;
 
         M5.update();
 

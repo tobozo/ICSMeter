@@ -116,16 +116,17 @@ namespace ICSMeter
         uint8_t SMeter = 0;
         uint8_t SWR    = 0;
         uint8_t PWR    = 0;
-        double freq    = 0;
+        int64_t freq = 0;
       };
 
       CIVStatus_t status;
       bool txConnected = false;
       bool had_success = false;
+      bool parsing = false; // for threads
       uint32_t last_poll = millis();
-      uint32_t poll_timeout = 10000;
+      uint32_t poll_timeout = 30000;
 
-      extern char buffer[8];
+      extern char buffer[16];
       extern char request[7];
 
       void setup();
@@ -238,6 +239,8 @@ namespace ICSMeter
       AsyncWebSocket ws("/ws");
       AsyncEventSource events("/events");
       AsyncWebSocketClient* wsClient;
+      static std::queue<String> msg_queue;
+      void handleMsgQueue();
     }
 
 
